@@ -57,12 +57,12 @@ echotimeaxis=np.arange(32)
 
 for i in range(len(ET)):
     decayX[i]=np.arange(nrEchoes)*ET[i]
-    decayY[i]=np.exp(-1*r94[i]*decayX[i])
+    decayY[i]=np.exp(-1*r62[i]*decayX[i])
     plt.plot(decayX[i],decayY[i])
     
     for j in range(nrEchoes):
         #Gaussian echo + noise:
-        echoes[i,j]=decayY[i,j]*snr*np.exp(-0.01*(64-echotimeaxis)**2 )+ np.random.rand(echotimeaxis.shape[0]) + 1j*np.random.rand(echotimeaxis.shape[0])
-    np.savetxt('r94/ET%1d.csv'%i, echoes[i],delimiter=',')
-np.savetxt('r94/echoTimes.csv',ET)
+        echoes[i,j]=decayY[i,j]*snr*np.exp(-0.01*(16-echotimeaxis)**2 )+ np.random.rand(echotimeaxis.shape[0]) + 1j*np.random.rand(echotimeaxis.shape[0])
+    np.savetxt('r62/ET%1d.csv'%i, echoes[i],delimiter=',')
+np.savetxt('r62/echoTimes.csv',ET)
     
