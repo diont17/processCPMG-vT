@@ -69,11 +69,6 @@ class Ui_REAWindow(object):
         self.btnLoad = QtGui.QPushButton(self.verticalLayoutWidget)
         self.btnLoad.setObjectName(_fromUtf8("btnLoad"))
         self.horizontalLayout_2.addWidget(self.btnLoad)
-        self.pushButton = QtGui.QPushButton(self.verticalLayoutWidget)
-        self.pushButton.setEnabled(False)
-        self.pushButton.setFlat(False)
-        self.pushButton.setObjectName(_fromUtf8("pushButton"))
-        self.horizontalLayout_2.addWidget(self.pushButton)
         self.verticalLayout.addLayout(self.horizontalLayout_2)
         REAWindow.setCentralWidget(self.verticalLayoutWidget)
 
@@ -88,5 +83,4 @@ class Ui_REAWindow(object):
         self.btnSelectFile.setText(_translate("REAWindow", "Save", None))
         self.btnQuit.setText(_translate("REAWindow", "Quit", None))
         self.btnLoad.setText(_translate("REAWindow", "Load", None))
-        self.pushButton.setText(_translate("REAWindow", "Process", None))
 

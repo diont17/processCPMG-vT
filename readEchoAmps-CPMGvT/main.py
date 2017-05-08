@@ -28,7 +28,7 @@ class reaApp(QtGui.QMainWindow, readEchoAmpsGui.Ui_REAWindow):
            self.inFolder.setText(path)
            self.lastPath=path
            ET=np.loadtxt(str(path+'/echoTimes.csv'), delimiter=',')
-           self.lblStatus.setText('{} Echoes: ET {:2e} ->{:2e}'.format(ET.shape[0],ET[0],ET[-1]))
+           self.lblStatus.setText('{} Echoes: ET {:.2e} ->{:.2e}'.format(ET.shape[0],ET[0],ET[-1]))
         else:
             self.complain()
 
@@ -44,13 +44,10 @@ class reaApp(QtGui.QMainWindow, readEchoAmpsGui.Ui_REAWindow):
         if self.inFolder.text() == "" or self.outFile.text()=="":
             self.complain()
             return
-        if bool(self.chkDoAverage.isChecked()) and self.numAverages.value()==0:
-            self.complain()
-            return
             
         self.btnLoad.setEnabled(False)
         
-        self.workThread=dataWorker(self.inFolder.text(),self.outFile.text(),self.chkDoAverage.isChecked(),self.numAverages.value())
+        self.workThread=dataWorker(self.inFolder.text(),self.outFile.text())
         self.connect(self.workThread,SIGNAL("finished()"),self.done )
         self.connect(self.workThread,SIGNAL("updateprogress(QString)"), self.doprogress)
         self.workThread.start()
@@ -73,13 +70,11 @@ class reaApp(QtGui.QMainWindow, readEchoAmpsGui.Ui_REAWindow):
 
 class dataWorker(QtCore.QThread):
     
-    def __init__(self,pathin,pathout,doaverage,avgpp):
+    def __init__(self,pathin,pathout):
         QtCore.QThread.__init__(self)
         self.fnameIn=pathin
         self.fnameOut=pathout
-        self.doAverage=doaverage
-        self.averagesPerPoint=avgpp
-    
+        
     def __del__(self):
         self.wait()
     
@@ -90,50 +85,41 @@ class dataWorker(QtCore.QThread):
         #Get rid of any of that QString stuff..
         fnameIn=str(self.fnameIn)
         fnameOut=str(self.fnameOut)
-        doAverage=bool(self.doAverage)
-        averagesPerPoint=int(self.averagesPerPoint)
-
-        #scan folder to get number of measures
+        
         echoTimes=np.loadtxt(fnameIn+'/echoTimes.csv')
+        numEchoTimes=echoTimes.shape[0]
         i=1
-        for i in range(echoTimes.shape[0]):
-            
-            numMeasures=i-1
-        self.emit(SIGNAL("updateprogress(QString)"),'Found %d files'%numMeasures)
+        #Test if all files exist
+        for i in xrange(numEchoTimes):
+            if (not exists(fnameIn+'/ET%1d.csv'%i)):
+                self.emit(SIGNAL("updateprogress(QString)"), 'Failed, missing ET%1d'%i)
+                return 1
+        self.emit(SIGNAL("updateprogress(QString)"),'Found %d files'%i)
         
         #Get dimensions for experiment data
-        rawEA=np.loadtxt(fnameIn+'/echoAmps%d.csv'%1, delimiter=',')
-        numEchoes=rawEA.shape[0]
-        numPoints=rawEA.shape[1]/2
+        rawEA=np.loadtxt(fnameIn+'/ET%d.csv'%1, delimiter=',',dtype=np.complex)
         
-        #make array to rebuild measure acq time
-        measureTime=np.zeros(numMeasures)
-        measureTime0=getmtime(fnameIn+'/echoAmps%d.csv'%1)
-        echoAmpsX=1e-3*np.loadtxt(fnameIn+'/echoAmpXaxis.csv')
+        #For real Prospa data (doesnt export a+bj format data)
+        #numEchoes=rawEA.shape[0]
+        #numPoints=rawEA.shape[1]/2
+        numEchoes=rawEA.shape[0]
+        numPoints=rawEA.shape[1]
+        
         
         #Make data array
-        fullData=np.zeros((numMeasures,numEchoes,numPoints),dtype=np.complex)
+        fullData=np.zeros((numEchoTimes,numEchoes,numPoints),dtype=np.complex)
         
-        for i in xrange(0,numMeasures):
-            rawEA=np.loadtxt(fnameIn+'/echoAmps%d.csv'%(i+1),delimiter=',')
-            realEA=rawEA[:,::2]
-            imagEA=rawEA[:,1::2]
-            fullData[i,:,:]=realEA+1j*imagEA
-            measureTime[i]=getmtime(fnameIn+'/echoAmps%d.csv'%(i+1))-measureTime0
-            self.emit(SIGNAL("updateprogress(QString)"),'Loaded %d of %d'%(i,numMeasures))
+        for i in xrange(0,numEchoTimes-1):
+            rawEA=np.loadtxt(fnameIn+'/ET%1d.csv'%(i),delimiter=',',dtype=np.complex)
+            
+            #realEA=rawEA[:,::2]
+            #imagEA=rawEA[:,1::2]
+            #fullData[i,:,:]=realEA+1j*imagEA
+            
+            fullData[i,:,:]=rawEA[:,:]
+            self.emit(SIGNAL("updateprogress(QString)"),'Loaded %d of %d'%(i,numEchoTimes))
         print fullData.shape      
         
-        if doAverage:
-            #Setup index array to select the measures to be averaged, outputs an array with [# of averaged points,# of averaged,numEchoes,numPoints]
-            avgIndex=np.arange((averagesPerPoint)*(numMeasures/averagesPerPoint))
-            avgIndex.shape=((numMeasures/averagesPerPoint),averagesPerPoint)
-
-            reAverageData=fullData.take(avgIndex,axis=0,mode='clip')
-            reAverage= (1.0/float(avgIndex.shape[1])) * np.sum(reAverageData,axis=1)
-        
-            del(reAverageData)
-            reAverageMeasureTime=measureTime[avgIndex[:,3]]
-
         
         def sumCplx(ph,a): return np.sum( ((np.exp(2j*np.pi*ph/360.0) * a).imag)**2)
         def phaseByMinCplx(a):
@@ -147,25 +133,12 @@ class dataWorker(QtCore.QThread):
             
             
         self.emit(SIGNAL("updateprogress(QString)"),'Phasing data')            
-        if doAverage:
-            phase=phaseByMinCplx(reAverage[0,1,:])
-            reAverage*=np.exp((phase/360.0)*2j*np.pi)
-        else:
-            phase=phaseByMinCplx(fullData[0,1,:])
-            
+        phase=phaseByMinCplx(fullData[0,0,:])
         fullData*=np.exp((phase/360.0)*2j*np.pi)
-        
         
         self.emit(SIGNAL("updateprogress(QString)"),'Saving')
         
-        if doAverage:
-            sio.savemat(fnameOut+' %dAvg.mat'%averagesPerPoint,{'phasedEchoData':reAverage,'echoCentreTime':echoAmpsX,'measureTime':reAverageMeasureTime}, )
-            print 'data shape:'
-            print reAverage.shape
-            print echoAmpsX.shape
-            print reAverageMeasureTime.shape
-        else:
-            sio.savemat(fnameOut+' Phased.mat',{'phasedEchoData':fullData,'echoCentreTime':echoAmpsX,'measureTime':measureTime})
+        sio.savemat(fnameOut+'.mat',{'phasedEchoData':fullData,'echoTimes':echoTimes})
         
         self.emit(SIGNAL("updateprogress(QString)"),'Done')
 
