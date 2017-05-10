@@ -19,7 +19,7 @@
      <rect>
       <x>10</x>
       <y>10</y>
-      <width>754</width>
+      <width>789</width>
       <height>451</height>
      </rect>
     </property>
@@ -34,7 +34,21 @@
         </widget>
        </item>
        <item>
-        <widget class="QSpinBox" name="spnEcho"/>
+        <widget class="QSpinBox" name="spnEcho">
+         <property name="buttonSymbols">
+          <enum>QAbstractSpinBox::UpDownArrows</enum>
+         </property>
+         <property name="maximum">
+          <number>0</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="lblEchoTime">
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QCheckBox" name="chkDoFT">
