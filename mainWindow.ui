@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>795</width>
+    <width>848</width>
     <height>717</height>
    </rect>
   </property>
@@ -17,10 +17,10 @@
    <widget class="QWidget" name="verticalLayoutWidget">
     <property name="geometry">
      <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>789</width>
-      <height>451</height>
+      <x>0</x>
+      <y>20</y>
+      <width>811</width>
+      <height>371</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="verticalLayout">
@@ -56,6 +56,19 @@
           <string>FT</string>
          </property>
         </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
        </item>
        <item>
         <widget class="QLabel" name="lblRangeLeft">
@@ -113,6 +126,39 @@
        </item>
       </layout>
      </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="chkPlotAllEchoes">
+         <property name="text">
+          <string>Show all Echoes</string>
+         </property>
+         <property name="checkable">
+          <bool>true</bool>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+         <property name="tristate">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
     </layout>
    </widget>
   </widget>
@@ -121,7 +167,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>795</width>
+     <width>848</width>
      <height>25</height>
     </rect>
    </property>
