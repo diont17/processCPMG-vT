@@ -12,12 +12,16 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QThread, SIGNAL
 
 
-class dataWorkerFT(QtCore.QThread):
+class dataWorkerInteg(QtCore.QThread):
     bgThreadResult=QtCore.pyqtSignal(np.ndarray)
     updateprogress=QtCore.pyqtSignal(QtCore.QString)
-    def __init__(self,dataIn):
+    def __init__(self,dataIn,leftEdge,rightEdge):
         QtCore.QThread.__init__(self)
-        self.dataIn=dataIn
+        self.dataIn=dataIn.real
+        self.numEchoTimes=dataIn.shape[0]
+        self.numEchoes=dataIn.shape[1]
+        self.leftEdge=leftEdge
+        self.rightEdge=rightEdge
         
     def __del__(self):
         self.wait()
@@ -26,9 +30,7 @@ class dataWorkerFT(QtCore.QThread):
         self.process()
 
     def process(self):    
-#        self.emit(SIGNAL("updateprogress(QString)"),'Running FT')
-        self.updateprogress.emit('Running FT')
-        phasedDataFT=fft.fftshift(fft.fft(fft.fftshift(self.dataIn,axes=2),axis=2),axes=2) #Echo, so needs to be shift/rotated
+        self.updateprogress.emit('Integrating echos, sum')
+        decays=np.sum(self.dataIn[:,:,self.leftEdge:self.rightEdge],axis=2)            
         self.updateprogress.emit('Done')
-#        self.emit(SIGNAL("updateprogress(QString)"),'Done')
-        self.bgThreadResult.emit(phasedDataFT)
+        self.bgThreadResult.emit(decays)
