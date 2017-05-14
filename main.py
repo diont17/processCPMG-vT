@@ -15,8 +15,8 @@ from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QThread, SIGNAL
 
 import mainWindowGUI
-import dataWorkerFT
-from dataWorkerInteg import dataWorkerInteg
+from bgFT import dataWorkerFT
+from bgInteg import dataWorkerInteg
 
 import sys
 from os.path import exists
@@ -112,7 +112,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.setUILocked(False)
                 self.setStatusText('Starting FT thread')
                 
-                self.bgThread=dataWorkerFT.dataWorkerFT(self.drawData)
+                self.bgThread=dataWorkerFT(self.drawData)
                 self.bgThread.updateprogress.connect(self.setStatusText)
                 self.bgThread.bgThreadResult.connect(self.doneFT)
                 self.bgThread.run()
