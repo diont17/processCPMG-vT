@@ -11,10 +11,6 @@ import scipy.fftpack as fft
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QThread, SIGNAL
 
-#class bgThreadResult(QtCore.QObject):
-#    def __init__(self, val):
-#        self.val=val
-
 class dataWorkerFT(QtCore.QThread):
     bgThreadResult=QtCore.pyqtSignal(np.ndarray)
     updateprogress=QtCore.pyqtSignal(QtCore.QString)
