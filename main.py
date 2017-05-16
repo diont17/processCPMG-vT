@@ -18,6 +18,7 @@ import mainWindowGUI
 from bgFT import dataWorkerFT
 from bgInteg import dataWorkerInteg
 from bgT2 import dataWorkerT2
+from bgRelaxFit import dataWorkerRelaxationFit
 
 import sys
 from os.path import exists
@@ -38,6 +39,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.hasEchoData=False
         self.hasDecayData=False
         self.hasT2Data=False
+        self.hasRelaxationData=False
     
     def setupUIconnections(self, mainwindow):
         self.actionQuit.triggered.connect(self.quitApp)
@@ -61,6 +63,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.chkPlotRelaxivity.stateChanged.connect(self.drawRelaxation)
         self.cmbRelaxFitType.addItem('Luz-Meiboom (from Stefanovic & Pike 2004)')
         self.cmbRelaxFitType.addItem('Jensen Chandra (from Stefanovic & Pike 2004')
+        self.cmbRelaxFitType.currentIndexChanged.connect(self.nameRelaxationPar)
         self.btnDoRelaxFit.clicked.connect(self.doRelaxationFit)
         
         self.tabWidget.setCurrentIndex(0)
@@ -203,7 +206,6 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.bgThread.bgThreadResult.connect(self.doneT2Fit)
             self.bgThread.run()
         
-        
     def doneT2Fit(self,result):
         self.dT2Fit=result
         self.hasT2Data=True
@@ -215,6 +217,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         elif self.cmbT2Fit.currentIndex() == 1:
             self.dPlotT2=result[:,np.array([0,2,4])]
             self.T2FitFunction=self.monoexponentialFit
+        
+        self.dR2=1.0/self.dT2Fit[:,0]
+        self.dR2pm= self.dT2Fit[:,0]**-2 * self.dT2Fit[:,1]
         
         self.drawDecays(keepView=False)
         self.drawRelaxation()
@@ -252,32 +257,83 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.ax2.set_xlabel('Time (s)')
             self.ax2.set_ylabel('Signal')
             self.canvas1.draw()
-    
-    def monoexponentialFit(self,xaxis,selectedEcho):
-        return self.dPlotT2[selectedEcho,1] * np.exp(-xaxis/self.dPlotT2[selectedEcho,0]) + self.dPlotT2[selectedEcho,2]
-    
+        
     def drawRelaxation(self):
         if self.hasT2Data:
+            self.ax3.clear()
+            self.canvas2.draw()
             if self.chkPlotRelaxivity.isChecked():
-                self.dRelaxivity=1.0/self.dT2Fit[:,0]
-                self.dRelaxivitypm= self.dT2Fit[:,0]**-2 * self.dT2Fit[1]
-                self.ax3.clear()
-                self.canvas2.draw()
-                self.ax3.errorbar(self.dechoTimes,self.dRelaxivity,yerr=self.dRelaxivitypm[:,1])
-                self.canvas2.draw()
-
+                
+                self.ax3.errorbar(self.dechoTimes,self.dR2,yerr=self.dR2pm, linestyle='None')
+                
+                if self.hasRelaxationData:
+                    xaxis=np.linspace(self.dechoTimes[0],self.dechoTimes[-1],30)
+                    self.ax3.plot(xaxis, self.RelaxationFitFunction(xaxis))
+                    self.ax3.set_ylabel('R2 (s-1)')
             else:
-                self.ax3.clear()
-                self.canvas2.draw()
-                self.ax3.errorbar(self.dechoTimes,self.dT2Fit[:,0],yerr=self.dT2Fit[:,1])
-                self.canvas2.draw()
-    
+                self.ax3.errorbar(self.dechoTimes,self.dT2Fit[:,0],yerr=self.dT2Fit[:,1],linestyle='None')
+                if self.hasRelaxationData:
+                    xaxis=np.linspace(self.dechoTimes[0],self.dechoTimes[-1],30)
+                    self.ax3.plot(xaxis, 1.0/self.RelaxationFitFunction(xaxis))                
+                
+                self.ax3.set_ylabel('T2 (s)')
+            
+            self.ax3.set_xlabel('Echotime (s)')
+            self.canvas2.draw()
     
     def doRelaxationFit(self):
         #Read checkbutton state and push into fit module
         #Calculate relaxivity and push into fit module
-        pass    
+        fittype=int(self.cmbRelaxFitType.currentIndex())
+        
+        fixedPar=[self.chkRxP0.isChecked(), self.chkRxP1.isChecked(), self.chkRxP2.isChecked(), self.chkRxP3.isChecked()]
+        if not fixedPar[0]:
+            self.txtRxP0.setText('0')
+        if not fixedPar[1]:
+            self.txtRxP1.setText('0')
+        if not fixedPar[2]:
+            self.txtRxP2.setText('0')
+        if not fixedPar[3]:
+            self.txtRxP3.setText('0')
+        
+        try:            
+            fixedParVal=[float(self.txtRxP0.text()), float(self.txtRxP1.text()), float(self.txtRxP2.text()),float(self.txtRxP3.text())]
+        except ValueError:
+            self.complain('Invalid fit parameter')
+            return -1
+        
+        self.bgThread=dataWorkerRelaxationFit(self.dechoTimes, self.dR2, self.dR2pm, fixedPar, fixedParVal, fittype)
+        
+        self.bgThread.updateprogress.connect(self.setStatusText)
+        self.bgThread.bgThreadTextOut.connect(self.updateFitText)
+        self.bgThread.bgThreadResult.connect(self.doneRelaxationFit)
+        self.bgThread.run()
+
     
+
+    def doneRelaxationFit(self,fitpar,fitparpm):
+
+        self.dRelaxationFit=fitpar
+        self.dRelaxationFitpm=fitparpm
+
+        self.hasRelaxationData=True
+        self.RelaxationFitFunction=self.LuzMeiboomFit
+        self.bgThread=None
+
+        self.drawRelaxation()
+
+
+    
+    def nameRelaxationPar(self):
+        if self.cmbRelaxFitType.currentIndex() == 0:
+            # Luz meiboom
+            self.chkRxP0.setText('Exchange time (s)')
+            self.chkRxP1.setText('R0')
+            self.chkRxP2.setText('K0')
+            self.chkRxP3.setText('')
+            self.chkRxP3.setEnabled(False)
+            self.chkRxP3.setChecked(True)
+        
     
     def setStatusText(self, text):
         self.statusbar.showMessage(text,0)
@@ -304,8 +360,16 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         msg.setStandardButtons(QtGui.QMessageBox.Cancel)
         retval=msg.exec_()
     
-    def t2Fit(self,x,a,b,c):
-        return (b*np.exp(-x/a))+c    
+    def monoexponentialFit(self,xaxis,selectedEcho):
+        return self.dPlotT2[selectedEcho,1] * np.exp(-xaxis/self.dPlotT2[selectedEcho,0]) + self.dPlotT2[selectedEcho,2]
+    
+    def LuzMeiboomFit(self,xaxis):
+        gamma=2.675e8
+        Tex=self.dRelaxationFit[0]
+        R0=self.dRelaxationFit[1]
+        K0=self.dRelaxationFit[2]
+        return R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/xaxis)*np.tanh(xaxis/(2*Tex)))
+
        
 def main():
     app=QtGui.QApplication(sys.argv)
