@@ -134,7 +134,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                     return ''
                 
 
-            self.bgThreadTextOut.emit('Fit decays to  R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/Tec)*tanh(Tec/(2*Tex)))' )
+            self.bgThreadTextOut.emit('Fit R2 values to R2 = R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/Tec)*tanh(Tec/(2*Tex)))' )
             if numFixed>0:
                 self.bgThreadTextOut.emit('** = Fixed value')
             self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|'.format('Tex' + printTrue(self.fixedPar[0]),'+/-','R0' + printTrue(self.fixedPar[1]),'+/-','K0' + printTrue(self.fixedPar[2]), '+/-'))
@@ -147,7 +147,8 @@ class dataWorkerRelaxationFit(QtCore.QThread):
 #           print(fitData[i])
                 
             self.bgThreadTextOut.emit(fitString)
-                
+            self.bgThreadTextOut.emit('\n\n')
+
         
         self.updateprogress.emit('Done Relaxation fitting')
         self.bgThreadResult.emit(fitPar, fitParpm)

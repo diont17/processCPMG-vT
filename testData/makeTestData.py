@@ -26,12 +26,12 @@ ET=1e-3*np.array([2, 2.5, 3, 3.74, 4, 4.5, 5, 7, 10, 12, 14, 17, 20, 30, 40])
 
 #Values of T20, K from Table 1 Stefanovic and Pike 2004
 
-r94 = makeLMdata(ET, 1/0.198, 3e-3, 0.5e-14) #Y=94%: T20=198ms, K=0.5e-14
-r87 = makeLMdata(ET, 1/0.197, 3e-3, 1.4e-14) #Y=87%: T20=197ms, K=1.4e-14 
-r72 = makeLMdata(ET, 1/0.200, 3e-3, 2.9e-14) #Y=72%: T20=200ms, K=2.9e-14
-r66 = makeLMdata(ET, 1/0.183, 3e-3, 3.7e-14) #Y=66%: T20=183ms, K=3.7e-14
-r62 = makeLMdata(ET, 1/0.184, 3e-3, 4.6e-14) #Y=62%: T20=184ms, K=4.6e-14
-r42 = makeLMdata(ET, 1/0.166, 3e-3, 9.4e-14) #Y=42%: T20=166ms, K=9.4e-14
+r94 = makeLMdata(ET, 5.0505, 3e-3, 0.5e-14) #Y=94%: T20=198ms, K=0.5e-14
+r87 = makeLMdata(ET, 5.0761, 3e-3, 1.4e-14) #Y=87%: T20=197ms, K=1.4e-14 
+r72 = makeLMdata(ET, 5.0000, 3e-3, 2.9e-14) #Y=72%: T20=200ms, K=2.9e-14
+r66 = makeLMdata(ET, 5.4644, 3e-3, 3.7e-14) #Y=66%: T20=183ms, K=3.7e-14
+r62 = makeLMdata(ET, 5.4347, 3e-3, 4.6e-14) #Y=62%: T20=184ms, K=4.6e-14
+r42 = makeLMdata(ET, 6.0240, 3e-3, 9.4e-14) #Y=42%: T20=166ms, K=9.4e-14
 
 plt.plot(1e3*ET, r94, label="Y=0.94")
 plt.plot(1e3*ET, r87, label="Y=0.87")

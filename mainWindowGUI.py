@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Form implementation generated from reading ui file 'mainWindowTab.ui'
+# Form implementation generated from reading ui file 'mainWindow.ui'
 #
 # Created by: PyQt4 UI code generator 4.11.4
 #
@@ -209,17 +209,23 @@ class Ui_mainWindow(object):
         self.actionOpen_folder.setObjectName(_fromUtf8("actionOpen_folder"))
         self.actionQuit = QtGui.QAction(mainWindow)
         self.actionQuit.setObjectName(_fromUtf8("actionQuit"))
+        self.actionOpen_Decay_mat = QtGui.QAction(mainWindow)
+        self.actionOpen_Decay_mat.setObjectName(_fromUtf8("actionOpen_Decay_mat"))
+        self.actionSave_Decay_mat = QtGui.QAction(mainWindow)
+        self.actionSave_Decay_mat.setObjectName(_fromUtf8("actionSave_Decay_mat"))
         self.menuMenu.addAction(self.actionOpen_mat)
         self.menuMenu.addAction(self.actionOpen_folder)
+        self.menuMenu.addAction(self.actionOpen_Decay_mat)
+        self.menuMenu.addAction(self.actionSave_Decay_mat)
         self.menuMenu.addAction(self.actionQuit)
         self.menubar.addAction(self.menuMenu.menuAction())
 
         self.retranslateUi(mainWindow)
-        self.tabWidget.setCurrentIndex(0)
-        QtCore.QObject.connect(self.chkRxP0, QtCore.SIGNAL(_fromUtf8("clicked(bool)")), self.txtRxP0.setEnabled)
-        QtCore.QObject.connect(self.chkRxP1, QtCore.SIGNAL(_fromUtf8("clicked(bool)")), self.txtRxP1.setEnabled)
-        QtCore.QObject.connect(self.chkRxP2, QtCore.SIGNAL(_fromUtf8("clicked(bool)")), self.txtRxP2.setEnabled)
-        QtCore.QObject.connect(self.chkRxP3, QtCore.SIGNAL(_fromUtf8("clicked(bool)")), self.txtRxP3.setEnabled)
+        self.tabWidget.setCurrentIndex(1)
+        QtCore.QObject.connect(self.chkRxP0, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.txtRxP0.setEnabled)
+        QtCore.QObject.connect(self.chkRxP1, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.txtRxP1.setEnabled)
+        QtCore.QObject.connect(self.chkRxP2, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.txtRxP2.setEnabled)
+        QtCore.QObject.connect(self.chkRxP3, QtCore.SIGNAL(_fromUtf8("toggled(bool)")), self.txtRxP3.setEnabled)
         QtCore.QMetaObject.connectSlotsByName(mainWindow)
 
     def retranslateUi(self, mainWindow):
@@ -241,7 +247,9 @@ class Ui_mainWindow(object):
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_3), _translate("mainWindow", "Echotime / Relaxation", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_2), _translate("mainWindow", "Fit results", None))
         self.menuMenu.setTitle(_translate("mainWindow", "Menu", None))
-        self.actionOpen_mat.setText(_translate("mainWindow", "Open .mat", None))
+        self.actionOpen_mat.setText(_translate("mainWindow", "Open Echo .mat", None))
         self.actionOpen_folder.setText(_translate("mainWindow", "Open folder", None))
         self.actionQuit.setText(_translate("mainWindow", "Quit", None))
+        self.actionOpen_Decay_mat.setText(_translate("mainWindow", "Open Decay .mat", None))
+        self.actionSave_Decay_mat.setText(_translate("mainWindow", "Save Decay .mat", None))
 
