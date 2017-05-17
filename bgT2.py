@@ -65,7 +65,7 @@ class dataWorkerT2(QtCore.QThread):
                 return (a*np.exp(-x/t2))
             
             self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2)' )
-            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}'.format('#','Echotime','T2','+/-','A','+/-'))
+            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-'))
             
             for i in xrange(self.numSequences):
                 popt,pcov=opt.curve_fit(t2Fit,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120])
@@ -75,13 +75,13 @@ class dataWorkerT2(QtCore.QThread):
                 T2Fit[i,1]=popt[1]
                 T2Fitpm[i,1]=np.abs(pcov[1,1]**0.5)
                 
-                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:^10.4f}|{4:^10.4f}|{5:^10.4f}|{6:^10.4f}|'.format(i,self.echoTimes[i],T2Fit[i,0],T2Fitpm[i,0],T2Fit[i,1],T2Fitpm[i,1])
+                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:^10.4f}|{4:^10.4f}|{5:^10.4f}|'.format(i,self.echoTimes[i],T2Fit[i,0],T2Fitpm[i,0],T2Fit[i,1],T2Fitpm[i,1])
                 
                 self.bgThreadTextOut.emit(fitString)
                 self.updateprogress.emit('Fit %d of %d'%(i,self.numSequences))
 
         
         self.updateprogress.emit('Done T2 fitting')
-        self.bgThreadTextOut.emit('\n\n')
+        self.bgThreadTextOut.emit('\n')
         self.bgThreadResult.emit(T2Fit, T2Fitpm)
 

@@ -8,7 +8,7 @@ Created on Tue May  9 13:08:09 2017
 
 import numpy as np
 import matplotlib as plt
-import scipy
+from scipy import integrate
 import scipy.io as sio
 plt.use('Qt4Agg')
 from PyQt4 import QtCore, QtGui
@@ -40,7 +40,8 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.hasDecayData=False
         self.hasT2Data=False
         self.hasRelaxationData=False
-    
+        self.fitline=0
+        
     def setupUIconnections(self, mainwindow):
         self.actionQuit.triggered.connect(self.quitApp)
         self.actionOpen_mat.triggered.connect(self.loadDataMat)
@@ -64,14 +65,16 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         #Relaxation fits
         self.chkPlotRelaxivity.stateChanged.connect(self.drawRelaxation)
         self.cmbRelaxFitType.addItem('Luz-Meiboom (from Stefanovic & Pike 2004)')
-        self.cmbRelaxFitType.addItem('Jensen Chandra (from Stefanovic & Pike 2004')
+        self.cmbRelaxFitType.addItem('Jensen Chandra (from Jensen & Chandra 2000')
         self.cmbRelaxFitType.currentIndexChanged.connect(self.nameRelaxationPar)
+        self.nameRelaxationPar()
         self.btnDoRelaxFit.clicked.connect(self.doRelaxationFit)
+        self.chkHoldRelaxationGraph.toggled.connect(self.togRelaxationHold)
         
         self.tabWidget.setCurrentIndex(0)
    
     def setupGraphs(self,mainwindow):
-        self.fig1=Figure(dpi=100)
+        self.fig1=Figure(
         self.canvas1 = FigureCanvas(self.fig1)
         self.canvas1.setParent(self.tabWidget)
         self.plot1Nav = NavigationToolbar(self.canvas1,self)
@@ -85,7 +88,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.canvas2=FigureCanvas(self.fig2)
         self.canvas2.setParent(self.tabWidget)
         self.plot2Nav=NavigationToolbar(self.canvas2,self)
-        self.ax3=self.fig2.add_subplot(1,1,1)
+       self.ax3=self.fig2.add_subplot(1,1,1)
         self.t3_vlayout.addWidget(self.plot2Nav)
         self.t3_vlayout.addWidget(self.canvas2)
     def quitApp(self):
@@ -120,13 +123,16 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.dnumEchoTimes=self.dechoTimes.shape[0]
                 self.spnEcho.setMaximum(self.dnumEchoTimes-1)
                 self.hasDecayData=True
-                if 'T2fits' in fileIn:
+                self.drawDecays(keepView=False)
+                self.updateFitText('Loaded decays from ' + path)
+                if 'T2fit' in fileIn:
                     self.dT2Fit=fileIn['T2Fit'] [0]
                     self.dT2Fitpm=fileIn['T2Fitpm'] [0]
                     self.dR2=fileIn['R2'] [0]
                     self.dR2pm=fileIn['R2pm'] [0]
                     self.hasT2Data=True
-                self.updateFitText('Loaded from ' + path)
+                    self.drawRelaxation()
+                    self.updateFitText('Loaded T2 values from ' + path)
             else:
                 self.complain('File does not contain decay data')
 
@@ -136,6 +142,8 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         if path is None:
             return -1
         else:
+            if not path.endswith('mat'):
+                path=path + '.mat'
             if self.hasT2Data:
                 sio.savemat(path,{'echoTimes':self.dechoTimes, 'decays':self.ddecays,'T2Fit':self.dT2Fit, 'T2Fitpm':self.dT2Fitpm, 'R2':self.dR2, 'R2pm':self.dR2pm})
             else:
@@ -296,30 +304,35 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.ax2.set_ylabel('Signal')
             self.canvas1.draw()
         
-    def drawRelaxation(self,clearax=True):
+    def drawRelaxation(self):
         if self.hasT2Data:
-            if clearax:
+            if not self.chkHoldRelaxationGraph.isChecked():
                 self.ax3.clear()
                 self.canvas2.draw()
-                
+            
             if self.chkPlotRelaxivity.isChecked():
                 
-                self.ax3.errorbar(self.dechoTimes,self.dR2,yerr=self.dR2pm, linestyle='None')
+                if not self.chkHoldRelaxationGraph.isChecked():
+                    self.ax3.errorbar(self.dechoTimes,self.dR2,yerr=self.dR2pm, linestyle='None')
                 
                 if self.hasRelaxationData:
                     xaxis=np.linspace(self.dechoTimes[0],self.dechoTimes[-1],30)
-                    self.ax3.plot(xaxis, self.RelaxationFitFunction(xaxis))
+                    self.ax3.plot(xaxis, self.RelaxationFitFunction(xaxis),label='fit %d'%self.fitline)
                     self.ax3.set_ylabel('R2 (s-1)')
             else:
-                self.ax3.errorbar(self.dechoTimes,self.dT2Fit[:,0],yerr=self.dT2Fitpm[:,0],linestyle='None')
+                if not self.chkHoldRelaxationGraph.isChecked():
+                    self.ax3.errorbar(self.dechoTimes,self.dT2Fit[:,0],yerr=self.dT2Fitpm[:,0],linestyle='None')
                 if self.hasRelaxationData:
                     xaxis=np.linspace(self.dechoTimes[0],self.dechoTimes[-1],30)
-                    self.ax3.plot(xaxis, 1.0/self.RelaxationFitFunction(xaxis))                
+                    self.ax3.plot(xaxis, 1.0/self.RelaxationFitFunction(xaxis),label='fit %d'%self.fitline)
                 
                 self.ax3.set_ylabel('T2 (s)')
             
             self.ax3.set_xlabel('Echotime (s)')
             self.canvas2.draw()
+            
+    def togRelaxationHold(self,holdon):
+        self.ax3.hold(holdon)
     
     def doRelaxationFit(self):
 
@@ -354,10 +367,19 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.dRelaxationFitpm=fitparpm
 
         self.hasRelaxationData=True
-        self.RelaxationFitFunction=self.LuzMeiboomFit
+        if self.cmbRelaxFitType.currentIndex()==0:
+            self.RelaxationFitFunction=self.LuzMeiboomFit
+        elif self.cmbRelaxFitType.currentIndex()==1:
+            self.RelaxationFitFunction=self.JCFit
+            
         self.bgThread=None
 
         self.drawRelaxation()
+        self.fitline+=1
+        self.txtRxP0.setText(str(fitpar[0]))
+        self.txtRxP1.setText(str(fitpar[1]))
+        self.txtRxP2.setText(str(fitpar[2]))
+#        self.txtRxP3.setText(str(fitpar[3]))
     
     def nameRelaxationPar(self):
         if self.cmbRelaxFitType.currentIndex() == 0:
@@ -370,7 +392,27 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.chkRxP2.setEnabled(True)
             self.chkRxP3.setText('')
             self.chkRxP3.setEnabled(False)
-            self.chkRxP3.setChecked(True)
+            self.chkRxP3.setChecked(False)
+            
+            self.txtRxP0.setText('3.3e-3')
+        elif self.cmbRelaxFitType.currentIndex() ==1:
+            #Jensen Chandra
+            self.chkRxP0.setText('R0')
+            self.chkRxP0.setEnabled(True)
+            self.chkRxP0.setChecked(False)
+            self.chkRxP1.setText('r_c')
+            self.chkRxP1.setChecked(True)
+            self.chkRxP1.setEnabled(True)
+            self.chkRxP2.setText('G0')
+            self.chkRxP2.setEnabled(True)
+            self.chkRxP0.setChecked(False)
+            self.chkRxP3.setText('')
+            self.chkRxP3.setEnabled(False)
+            self.txtRxP3.setEnabled(False)
+            self.chkRxP3.setChecked(False)
+            
+            self.txtRxP1.setText('4.6')
+            
         
     
     def setStatusText(self, text):
@@ -407,8 +449,24 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         R0=self.dRelaxationFit[1]
         K0=self.dRelaxationFit[2]
         return R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/xaxis)*np.tanh(xaxis/(2*Tex)))
+    
+    def JCFit(self,xaxis):
+        def JCF(x):
+            #devectorised JCF
+            res=np.zeros_like(x)
+            for i in range(len(x)):
+                intfn=lambda y: np.exp(-y) * y**-0.5 * ( 1 - np.tanh(x[i]*y) / (x[i]*y) )
+                res[i],abserr=integrate.quad(intfn, 0, np.inf)
+            return res/np.sqrt(np.pi)
+        
+        R0 = self.dRelaxationFit[0]
+        rc = self.dRelaxationFit[1]
+        G0 = self.dRelaxationFit[2]
+        D=2e3
+        gamma = 2.675e8
 
-       
+        return R0 + ((G0 * gamma**2 * rc**2) / (2*D)) * JCF(2*D * xaxis / (rc**2))
+
 def main():
     app=QtGui.QApplication(sys.argv)
     form = processCPMGvtApp()

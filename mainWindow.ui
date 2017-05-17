@@ -27,7 +27,7 @@
        <enum>QTabWidget::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>1</number>
+       <number>0</number>
       </property>
       <property name="documentMode">
        <bool>false</bool>
@@ -53,6 +53,9 @@
           </property>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0,0,1,0,0,0,0">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetFixedSize</enum>
+            </property>
             <item>
              <widget class="QLabel" name="lblDisplayedEcho">
               <property name="text">
@@ -145,6 +148,9 @@
           </item>
           <item>
            <layout class="QHBoxLayout" name="horizontalLayout_3">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetFixedSize</enum>
+            </property>
             <item>
              <spacer name="horizontalSpacer_2">
               <property name="orientation">
@@ -196,13 +202,10 @@
         <item row="0" column="0">
          <layout class="QVBoxLayout" name="t3_vlayout">
           <item>
-           <widget class="QWidget" name="plot2Nav" native="true"/>
-          </item>
-          <item>
-           <widget class="QWidget" name="canvas2" native="true"/>
-          </item>
-          <item>
            <layout class="QGridLayout" name="gridLayout_2">
+            <property name="sizeConstraint">
+             <enum>QLayout::SetFixedSize</enum>
+            </property>
             <item row="2" column="0">
              <widget class="QCheckBox" name="chkRxP1">
               <property name="text">
@@ -285,6 +288,13 @@
             </item>
             <item row="0" column="1">
              <widget class="QComboBox" name="cmbRelaxFitType"/>
+            </item>
+            <item row="3" column="2">
+             <widget class="QCheckBox" name="chkHoldRelaxationGraph">
+              <property name="text">
+               <string>Hold graph</string>
+              </property>
+             </widget>
             </item>
            </layout>
           </item>
