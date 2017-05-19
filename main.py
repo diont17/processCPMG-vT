@@ -74,7 +74,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.tabWidget.setCurrentIndex(0)
    
     def setupGraphs(self,mainwindow):
-        self.fig1=Figure(
+        self.fig1=Figure(dpi=100)
         self.canvas1 = FigureCanvas(self.fig1)
         self.canvas1.setParent(self.tabWidget)
         self.plot1Nav = NavigationToolbar(self.canvas1,self)
@@ -88,7 +88,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.canvas2=FigureCanvas(self.fig2)
         self.canvas2.setParent(self.tabWidget)
         self.plot2Nav=NavigationToolbar(self.canvas2,self)
-       self.ax3=self.fig2.add_subplot(1,1,1)
+        self.ax3=self.fig2.add_subplot(1,1,1)
         self.t3_vlayout.addWidget(self.plot2Nav)
         self.t3_vlayout.addWidget(self.canvas2)
     def quitApp(self):
@@ -258,7 +258,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.dT2Fitpm=resultpm
         self.hasT2Data=True
         self.bgThread=None
-        
+ 
         if self.cmbT2Fit.currentIndex() == 0:
             self.T2FitFunction=self.monoexponentialFit
         elif self.cmbT2Fit.currentIndex() == 1:
@@ -442,7 +442,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     
     def monoexponentialFit(self,xaxis,selectedEcho):
         return self.dT2Fit[selectedEcho,1] * np.exp(-xaxis/self.dT2Fit[selectedEcho,0]) + self.dT2Fit[selectedEcho,2]
-    
+        
     def LuzMeiboomFit(self,xaxis):
         gamma=2.675e8
         Tex=self.dRelaxationFit[0]
