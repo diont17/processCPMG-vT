@@ -61,14 +61,19 @@ class dataWorkerT2(QtCore.QThread):
             T2Fit=np.zeros((self.numSequences,3))
             T2Fitpm=np.zeros((self.numSequences,3))
             
-            def t2Fit(x,t2,a):
-                return (a*np.exp(-x/t2))
+            t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
             
-            self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2)' )
+            #Calculate c from longest echotime measurement
+            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,120,0])
+            c=popt[2]
+            
+            t2exp = lambda x,t2,a: ((a*np.exp(-x/t2))+c) 
+            
+            self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2) + c, c={0:.3f}'.format(c))
             self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-'))
             
             for i in xrange(self.numSequences):
-                popt,pcov=opt.curve_fit(t2Fit,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120])
+                popt,pcov=opt.curve_fit(t2exp,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120])
                 
                 T2Fit[i,0]=popt[0]
                 T2Fitpm[i,0]=np.abs(pcov[0,0]**0.5)
@@ -79,7 +84,7 @@ class dataWorkerT2(QtCore.QThread):
                 
                 self.bgThreadTextOut.emit(fitString)
                 self.updateprogress.emit('Fit %d of %d'%(i,self.numSequences))
-
+            T2Fit[:,2]=c
         
         self.updateprogress.emit('Done T2 fitting')
         self.bgThreadTextOut.emit('\n')

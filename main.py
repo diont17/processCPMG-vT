@@ -74,7 +74,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.tabWidget.setCurrentIndex(0)
    
     def setupGraphs(self,mainwindow):
-        self.fig1=Figure(
+        self.fig1=Figure(dpi=100)
         self.canvas1 = FigureCanvas(self.fig1)
         self.canvas1.setParent(self.tabWidget)
         self.plot1Nav = NavigationToolbar(self.canvas1,self)
@@ -88,7 +88,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.canvas2=FigureCanvas(self.fig2)
         self.canvas2.setParent(self.tabWidget)
         self.plot2Nav=NavigationToolbar(self.canvas2,self)
-       self.ax3=self.fig2.add_subplot(1,1,1)
+        self.ax3=self.fig2.add_subplot(1,1,1)
         self.t3_vlayout.addWidget(self.plot2Nav)
         self.t3_vlayout.addWidget(self.canvas2)
     def quitApp(self):
@@ -258,7 +258,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.dT2Fitpm=resultpm
         self.hasT2Data=True
         self.bgThread=None
-        
+ 
         if self.cmbT2Fit.currentIndex() == 0:
             self.T2FitFunction=self.monoexponentialFit
         elif self.cmbT2Fit.currentIndex() == 1:
@@ -337,8 +337,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     def doRelaxationFit(self):
 
         if self.hasT2Data:
-            fittype=int(self.cmbRelaxFitType.currentIndex())
-        
+            fitType=int(self.cmbRelaxFitType.currentIndex())
+            useError=self.chkUseFitError.isChecked()
+            
             fixedPar=[self.chkRxP0.isChecked(), self.chkRxP1.isChecked(), self.chkRxP2.isChecked(), self.chkRxP3.isChecked()]
             if not fixedPar[0]:
                 self.txtRxP0.setText('0')
@@ -353,9 +354,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             except ValueError:
                 self.complain('Invalid fit parameter')
                 return -1
-                
-            self.bgThread=dataWorkerRelaxationFit(self.dechoTimes, self.dR2, self.dR2pm, fixedPar, fixedParVal, fittype)
-                
+            
+            self.bgThread=dataWorkerRelaxationFit(self.dechoTimes, self.dR2, self.dR2pm, fixedPar, fixedParVal, fitType,useError)
+            
             self.bgThread.updateprogress.connect(self.setStatusText)
             self.bgThread.bgThreadTextOut.connect(self.updateFitText)
             self.bgThread.bgThreadResult.connect(self.doneRelaxationFit)
@@ -386,9 +387,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             # Luz meiboom
             self.chkRxP0.setText('Exchange time (s)')
             self.chkRxP0.setEnabled(True)
-            self.chkRxP1.setText('R0')
+            self.chkRxP1.setText('R0 (s-1)')
             self.chkRxP1.setEnabled(True)
-            self.chkRxP2.setText('K0')
+            self.chkRxP2.setText('K0 (T^2)')
             self.chkRxP2.setEnabled(True)
             self.chkRxP3.setText('')
             self.chkRxP3.setEnabled(False)
@@ -397,13 +398,13 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.txtRxP0.setText('3.3e-3')
         elif self.cmbRelaxFitType.currentIndex() ==1:
             #Jensen Chandra
-            self.chkRxP0.setText('R0')
+            self.chkRxP0.setText('R0 (s-1)')
             self.chkRxP0.setEnabled(True)
             self.chkRxP0.setChecked(False)
-            self.chkRxP1.setText('r_c')
+            self.chkRxP1.setText('r_c (um)')
             self.chkRxP1.setChecked(True)
             self.chkRxP1.setEnabled(True)
-            self.chkRxP2.setText('G0')
+            self.chkRxP2.setText('G0 (T^2)')
             self.chkRxP2.setEnabled(True)
             self.chkRxP0.setChecked(False)
             self.chkRxP3.setText('')
@@ -411,7 +412,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.txtRxP3.setEnabled(False)
             self.chkRxP3.setChecked(False)
             
-            self.txtRxP1.setText('4.6')
+            self.txtRxP1.setText('4.3')
             
         
     
@@ -442,7 +443,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     
     def monoexponentialFit(self,xaxis,selectedEcho):
         return self.dT2Fit[selectedEcho,1] * np.exp(-xaxis/self.dT2Fit[selectedEcho,0]) + self.dT2Fit[selectedEcho,2]
-    
+        
     def LuzMeiboomFit(self,xaxis):
         gamma=2.675e8
         Tex=self.dRelaxationFit[0]
@@ -470,7 +471,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
 def main():
     app=QtGui.QApplication(sys.argv)
     form = processCPMGvtApp()
-    app.setStyle('Fusion')
+    app.setStyle('gtk')
     form.show()
     app.exec_()
 
