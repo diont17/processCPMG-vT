@@ -17,15 +17,18 @@ class dataWorkerRelaxationFit(QtCore.QThread):
     bgThreadTextOut=QtCore.pyqtSignal(QtCore.QString)
     updateprogress=QtCore.pyqtSignal(QtCore.QString)
     
-    def __init__(self, echoTimes, R2, R2pm, fixedPar, fixedParVal, methodIndex):
+    def __init__(self, echoTimes, R2, R2pm, fixedPar, fixedParVal, methodIndex,useError):
         QtCore.QThread.__init__(self)
         self.echoTimes=echoTimes
         self.R2 = R2
-        self.R2pm = R2pm
+        if useError:
+            self.R2pm = R2pm
+        else:
+            self.R2pm=None
         self.fixedPar = fixedPar
         self.fixedParVal = fixedParVal
         self.methodIndex=methodIndex 
-        
+        self.useError=useError
         #0 - Luz/Meiboom
         # P0: Exchange time
         # P1: R0
@@ -53,14 +56,14 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                 return R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/Tec)*np.tanh(Tec/(2*Tex)))
             
             guesses=[5.05, 3e-3, 0.5e-14]
-            
+            absSig=self.useError
             numFixed=self.fixedPar[0] + self.fixedPar[1] +self.fixedPar[2]
             fitPar=np.zeros(3)
             fitPar[0:3]=self.fixedParVal[0:3]
             fitParpm=np.zeros(3)
 
             if numFixed==0:
-                popt,pcov=opt.curve_fit(LM0, self.echoTimes, self.R2, p0=guesses)
+                popt,pcov=opt.curve_fit(LM0, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses)
                 fitPar=popt
                 fitParpm[0]=np.abs(pcov[0,0]**0.5)
                 fitParpm[1]=np.abs(pcov[1,1]**0.5)
@@ -69,7 +72,13 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             elif numFixed==1:
                     if self.fixedPar[0]:
                         LM1 = lambda x,a,b: LM0(x, self.fixedParVal[0], a, b)
-                        popt,pcov= opt.curve_fit(LM1, self.echoTimes, self.R2, p0=[guesses[1],guesses[2]])
+                        popt,pcov,idm,err,ier= opt.curve_fit(LM1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[1],guesses[2]],full_output=True)
+                        print(' popt: \n' )
+                        print(popt)
+                        print('\n pcov:\n')
+                        print(pcov)
+                        print('\nid\n')
+                        print(idm)
                         fitPar[1]=popt[0]
                         fitPar[2]=popt[1]
                         fitParpm[1]=np.abs(pcov[0,0]**0.5)
@@ -77,7 +86,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                         
                     elif self.fixedPar[1]:
                         LM1 = lambda x,a,b: LM0(x, a, self.fixedParVal[1], b)
-                        popt,pcov= opt.curve_fit(LM1, self.echoTimes, self.R2, p0=[guesses[0],guesses[2]])
+                        popt,pcov= opt.curve_fit(LM1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[0],guesses[2]])
                         fitPar[0]=popt[0]
                         fitPar[2]=popt[1]
                         fitParpm[0]=np.abs(pcov[0,0]**0.5)
@@ -85,7 +94,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
 
                     elif self.fixedPar[2]:
                         LM1 = lambda x,a,b: LM0(x, a, b, self.fixedParVal[2])
-                        popt,pcov= opt.curve_fit(LM1, self.echoTimes, self.R2, p0=[guesses[0],guesses[1]])
+                        popt,pcov= opt.curve_fit(LM1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[0],guesses[1]])
                         fitPar[0]=popt[0]
                         fitPar[1]=popt[1]
                         fitParpm[0]=np.abs(pcov[0,0]**0.5)
@@ -95,18 +104,18 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                 if self.fixedPar[0]:
                     if self.fixedPar[1]:
                         LM2 = lambda x,a: LM0(x,self.fixedParVal[0],self.fixedParVal[1],a)
-                        popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, p0=guesses[2])
+                        popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[2])
                         fitPar[2]=popt
                         fitParpm[2]=np.abs(pcov**0.5)
                     
                     else:
                         LM2 = lambda x,a: LM0(x,self.fixedParVal[0],a,self.fixedParVal[2])
-                        popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, p0=guesses[1])
+                        popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[1])
                         fitPar[1]=popt
                         fitParpm[1]=np.abs(pcov**0.5)
                 else:
                     LM2 = lambda x,a: LM0(x, a, self.fixedParVal[1], self.fixedParVal[2])
-                    popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, p0=guesses[0])
+                    popt,pcov= opt.curve_fit(LM2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[0])
                     fitPar[0]=popt
                     fitParpm[0]=np.abs(pcov**0.5)
 
@@ -162,8 +171,10 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                 D=2e3
                 #D=2 um/ms, fixed
                 return R0 + (G0 * gamma**2 * rc**2)/(2*D) * JCF(2*D*Tec/(rc**2))
+
             guesses=[5.05, 4.6, 6.6e-14]
-                        
+            absSig=self.useError
+                       
             numFixed=self.fixedPar[0] + self.fixedPar[1] +self.fixedPar[2]
             fitPar=np.zeros(3)
             fitPar[0:3]=self.fixedParVal[0:3]
@@ -171,7 +182,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             fitParpm=np.zeros(3)
 
             if numFixed==0:
-                popt,pcov=opt.curve_fit(JC0, self.echoTimes, self.R2, p0=guesses)
+                popt,pcov=opt.curve_fit(JC0, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses)
                 fitPar=popt
                 fitParpm[0]=np.abs(pcov[0,0]**0.5)
                 fitParpm[1]=np.abs(pcov[1,1]**0.5)
@@ -180,7 +191,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             elif numFixed==1:
                     if self.fixedPar[0]:
                         JC1 = lambda x,a,b: JC0(x, self.fixedParVal[0], a, b)
-                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, p0=[guesses[1],guesses[2]])
+                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[1],guesses[2]])
                         fitPar[1]=popt[0]
                         fitPar[2]=popt[1]
                         fitParpm[1]=np.abs(pcov[0,0]**0.5)
@@ -188,7 +199,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                         
                     elif self.fixedPar[1]:
                         JC1 = lambda x,a,b: JC0(x, a, self.fixedParVal[1], b)
-                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, p0=[guesses[0],guesses[2]])
+                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[0],guesses[2]])
                         fitPar[0]=popt[0]
                         fitPar[2]=popt[1]
                         fitParpm[0]=np.abs(pcov[0,0]**0.5)
@@ -196,7 +207,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
 
                     elif self.fixedPar[2]:
                         JC1 = lambda x,a,b: JC0(x, a, b, self.fixedParVal[2])
-                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, p0=[guesses[0],guesses[1]])
+                        popt,pcov= opt.curve_fit(JC1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[0],guesses[1]])
                         fitPar[0]=popt[0]
                         fitPar[1]=popt[1]
                         fitParpm[0]=np.abs(pcov[0,0]**0.5)
@@ -206,18 +217,18 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                 if self.fixedPar[0]:
                     if self.fixedPar[1]:
                         JC2 = lambda x,a: JC0(x, self.fixedParVal[0], self.fixedParVal[1], a)
-                        popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, p0=guesses[2])
+                        popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[2])
                         fitPar[2]=popt
                         fitParpm[2]=np.abs(pcov**0.5)
                     
                     else:
                         JC2 = lambda x,a: JC0(x, self.fixedParVal[0], a, self.fixedParVal[2])
-                        popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, p0=guesses[1])
+                        popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[1])
                         fitPar[1]=popt
                         fitParpm[1]=np.abs(pcov**0.5)
                 else:
                     JC2 = lambda x,a: JC0(x, a, self.fixedParVal[1], self.fixedParVal[2])
-                    popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, p0=guesses[0])
+                    popt,pcov= opt.curve_fit(JC2, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses[0])
                     fitPar[0]=popt
                     fitParpm[0]=np.abs(pcov**0.5)
 
