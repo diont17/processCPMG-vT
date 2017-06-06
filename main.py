@@ -8,6 +8,7 @@ Created on Tue May  9 13:08:09 2017
 
 import numpy as np
 import matplotlib as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy import integrate
 import scipy.io as sio
 plt.use('Qt4Agg')
@@ -35,12 +36,13 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.setupGraphs(self)
         
         #window vars:
-        self.lastpath='/home/dion/Documents/Python/processCPMG-vT/testData/r87'
-        self.hasEchoData=False
-        self.hasDecayData=False
-        self.hasT2Data=False
-        self.hasRelaxationData=False
-        self.fitline=0
+        self.lastpath = '/home/dion/Documents/Python/processCPMG-vT/testData/r87'
+        self.hasEchoData = False
+        self.hasDecayData = False
+        self.hasT2Data = False
+        self.hasILData = False
+        self.hasRelaxationData = False
+        self.fitline = 0
         
     def setupUIconnections(self, mainwindow):
         self.actionQuit.triggered.connect(self.quitApp)
@@ -60,6 +62,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.spnEcho.valueChanged.connect(self.drawDecays)
         self.cmbT2Fit.addItem('Monoexponential')
         self.cmbT2Fit.addItem('Monoexponential (fixed c)')
+        self.cmbT2Fit.addItem('Inverse Laplace')
         self.btnDoT2fit.clicked.connect(self.doT2Fit)
         
         #Relaxation fits
@@ -81,8 +84,13 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.plot1Nav.setParent(self.tabWidget)
         self.ax1=self.fig1.add_subplot(1,2,1)
         self.ax2=self.fig1.add_subplot(1,2,2)
+        self.ax2a=None
         self.verticalLayout_3.addWidget(self.plot1Nav)
         self.verticalLayout_3.addWidget(self.canvas1)
+
+#        self.grid1 = AxesGrid(self.fig1, 121, nrows_ncols=(1,2))
+#        self.canvas1divider=make_axes_locatable(self.ax1)
+        #self.ax2=self.canvas1divider.append_axes("right",1)
         
         self.fig2=Figure(dpi=100)
         self.canvas2=FigureCanvas(self.fig2)
@@ -99,11 +107,14 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         if exists(path):
             fileIn=sio.loadmat(path)
             if 'phasedEchoData' in fileIn:
-                self.dechoTimes=fileIn['echoTimes'] [0]
-                self.drawData=fileIn['phasedEchoData']
-                self.hasEchoData=True
+                self.dechoTimes = fileIn['echoTimes'] [0]
+                self.drawData = fileIn['phasedEchoData']
+                self.hasEchoData = True
                 self.populateEchoes()
                 self.updateFitText('Loaded from ' + path)
+                self.hasDecayData = False
+                self.hasILData = False
+                self.hasRelaxationData = False
             else:
                 self.complain('File does not contain echodata')
                     
@@ -253,28 +264,53 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.bgThread.bgThreadResult.connect(self.doneT2Fit)
             self.bgThread.run()
         
-    def doneT2Fit(self,result,resultpm):
-        self.dT2Fit=result
-        self.dT2Fitpm=resultpm
-        self.hasT2Data=True
-        self.bgThread=None
- 
-        if self.cmbT2Fit.currentIndex() == 0:
-            self.T2FitFunction=self.monoexponentialFit
-        elif self.cmbT2Fit.currentIndex() == 1:
+    def doneT2Fit(self,res):
+        method = int(self.cmbT2Fit.currentIndex())
+        if method == 0 or method == 1:
+            self.dT2Fit=res['fitpar']
+            self.dT2Fitpm=res['fitparpm']
+            self.hasT2Data=True
+            self.hasILData=False
+            self.bgThread=None
             self.T2FitFunction=self.monoexponentialFit
         
+        elif method ==2: #ILT
+            self.dT2Fit = np.zeros((self.dnumEchoTimes,1))
+            self.dT2Fit[:,0] = res['pickedT2']
+            self.dT2Fitpm = np.zeros_like(self.dT2Fit)
+            self.hasT2Data = True
+            self.hasILData = True
+            self.bgThread = None
+            self.T2FitFunction = self.inverseLaplaceFit
+            self.dILX = res['T2out']
+            self.dILY = res['ILspectra']
+            self.dILc = res['const']
+            
         self.dR2=1.0/self.dT2Fit[:,0]
         self.dR2pm= self.dT2Fit[:,0]**-2 * self.dT2Fitpm[:,0]
-        
+        self.changeDecayGraphMode()
         self.drawDecays(keepView=False)
         self.drawRelaxation()
     
     def updateFitText(self,txt):
         self.txtFitResults.append(txt)
+
+    def changeDecayGraphMode(self):
+        self.fig1.delaxes(self.ax2)
+        if self.ax2a is not None:
+            self.fig1.delaxes(self.ax2a)
+        self.canvas1.draw()
         
+        if self.hasILData:
+            self.ax2=self.fig1.add_subplot(2,2,2)
+            self.ax2a=self.fig1.add_subplot(2,2,4)                
+        else:
+            self.ax2=self.fig1.add_subplot(1,2,2)
+            self.ax2a=None #self.fig1.add_subplot(2,2,4)
+        self.canvas1.draw()
         
     def drawDecays(self,keepView=True):
+
         if self.hasDecayData:
             oldvp=(self.ax2.get_xlim(),self.ax2.get_ylim())
             selectedEcho=int(self.spnEcho.value())
@@ -302,8 +338,17 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
 
             self.ax2.set_xlabel('Time (s)')
             self.ax2.set_ylabel('Signal')
+            
+        if self.hasILData:
+            self.ax2a.clear()
             self.canvas1.draw()
-        
+            self.ax2a.semilogx(self.dILX, self.dILY[int(self.spnEcho.value())])
+            self.ax2a.set_xlabel('T2 (s)')
+            self.ax2a.set_ylabel('IL spectrum')
+            
+        self.canvas1.draw()
+    
+
     def drawRelaxation(self):
         if self.hasT2Data:
             if not self.chkHoldRelaxationGraph.isChecked():
@@ -443,7 +488,13 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     
     def monoexponentialFit(self,xaxis,selectedEcho):
         return self.dT2Fit[selectedEcho,1] * np.exp(-xaxis/self.dT2Fit[selectedEcho,0]) + self.dT2Fit[selectedEcho,2]
-        
+     
+    def inverseLaplaceFit(self, xaxis, selectedEcho):
+        #build K2 matrix, then dot with the IL spectrum to recreate decay fit
+        K2 = np.exp(np.outer(-1 * xaxis, 1/self.dILX))
+        return np.dot(K2, self.dILY[selectedEcho,:]) + self.dILc
+    
+    
     def LuzMeiboomFit(self,xaxis):
         gamma=2.675e8
         Tex=self.dRelaxationFit[0]

@@ -39,6 +39,7 @@ Python version of:
 %N2 = 10000;
 %Nx = 100;      % number of bins in relaxation time grids
 %Ny = 101;
+
 %tau1min = 1e-4;
 %tau1max = 10;
 %deltatau2 = 3.5e-4;
@@ -62,6 +63,9 @@ def flint(K1, K2, Z, alpha, S=None):
         S = np.ones((Nx, Ny))
     if len(Z.shape) == 1:
         Z = np.expand_dims(Z, axis=0)
+    if len(S.shape) == 1:
+        S = np.expand_dims(S, axis=0)
+
     resida = np.zeros(maxiter)
     KK1 = np.dot(K1.T, K1)
     KK2 = np.dot(K2.T, K2)
@@ -74,6 +78,7 @@ def flint(K1, K2, Z, alpha, S=None):
     fac1 = (L-2*alpha)/L
     fac2 = 2.0/L
     lastresid = np.inf
+#    print(KK1.shape, Y.shape, KK2.shape, KZ12.shape)
     print("{0:7s} | {1:8s} | {2:8s} | {3:8s} | {4:10s} | {5:10s}|".format(" i ", "tt", "trat", "L", "resid", "resd"))
 
     for i in xrange(maxiter):
@@ -97,29 +102,43 @@ def flint(K1, K2, Z, alpha, S=None):
             if resd < 1e-5:
                 break
     
-    return S, resida
+    return np.squeeze(S), resida
 
-tau =2e-3
-decay = tau * np.arange(1000)
+#Testing
+#tau =2e-3
+#decay = tau * np.arange(1000)
+#
+#T2a =  20e-3
+#T2b = 100e-3
+#T2c = 400e-3
+#np.random.seed(123124878)
+#sig = 3*np.exp(-decay/T2a) + 6 * np.exp(-decay/T2b) + 2 * np.exp(-decay/T2c)
+#sig += 1 * np.random.rand(decay.shape[0])
+#sig -= 0.5
+#echotime = tau * np.arange(1000)
+#Ny = 201 # number of bins in relaxation time grid
+#T2out = np.logspace(-3,1, Ny)
+#
+#K2 = np.exp(np.outer(-echotime, 1/T2out))
+#K1 = np.array([[1]])
+#
+#for alpha in [2e-5, 2e-3]:
+#    print('\nalpha = {0:.2e}'.format(alpha))
+#    Sflint,resida = flint(K1, K2, sig, alpha)
+#    plt.semilogx(T2out, Sflint, label= 'a = {0:.2e}'.format(alpha))
+#
+#plt.legend()
+#plt.vlines([T2a,T2b,T2c], 0,1, 'r')
 
-T2a =  20e-3
-T2b = 100e-3
-T2c = 400e-3
-np.random.seed(123124878)
-sig = 3*np.exp(-decay/T2a) + 6 * np.exp(-decay/T2b) + 2 * np.exp(-decay/T2c)
-sig += 1 * np.random.rand(decay.shape[0])
-sig -= 0.5
-echotime = tau * np.arange(1000)
-Ny = 501 # number of bins in relaxation time grid
-T2out = np.logspace(-3,1, Ny)
-
-K2 = np.exp(np.outer(-echotime, 1/T2out))
-K1 = np.array([[1]])
-
-for alpha in [2e-6, 2e-5, 2e-4, 2e-3, 2e-2]:
-    print('\nalpha = {0:.2e}'.format(alpha))
-    Sflint,resida = flint(K1, K2, sig, alpha)
-    plt.semilogx(T2out, Sflint[0], label= 'a = {0:.2e}'.format(alpha))
-
-plt.legend()
-plt.vlines([T2a,T2b,T2c], 0,1, 'r')
+#
+#import scipy.signal as signal
+#
+#maxPeakInd = signal.argrelmax(Sflint)
+#print maxPeakInd
+#
+#print("max")
+#print(maxPeakInd)
+#print(T2out[maxPeakInd])
+#print(Sflint[maxPeakInd])
+#
+#plt.scatter(T2out[maxPeakInd],Sflint[maxPeakInd])

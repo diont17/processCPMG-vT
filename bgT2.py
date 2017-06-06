@@ -10,9 +10,10 @@ import numpy as np
 import scipy.optimize as opt
 from PyQt4 import QtCore, QtGui
 from PyQt4.QtCore import QThread, SIGNAL
+from flintlib import flint
 
 class dataWorkerT2(QtCore.QThread):
-    bgThreadResult=QtCore.pyqtSignal(np.ndarray, np.ndarray)
+    bgThreadResult=QtCore.pyqtSignal(object)
     bgThreadTextOut=QtCore.pyqtSignal(QtCore.QString)
     updateprogress=QtCore.pyqtSignal(QtCore.QString)
     
@@ -44,6 +45,7 @@ class dataWorkerT2(QtCore.QThread):
                 return (a*np.exp(-x/t2))+c
             self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2) + c' )
             self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|{6:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-','c'))
+
             for i in xrange(self.numSequences):
                 popt,pcov=opt.curve_fit(t2Fit,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120,0])
                 T2Fit[i,0]=popt[0]
@@ -56,6 +58,8 @@ class dataWorkerT2(QtCore.QThread):
                
                 self.bgThreadTextOut.emit(fitString)
                 self.updateprogress.emit('Fit %d of %d'%(i,self.numSequences))
+            
+            res={'fitpar': T2Fit, 'fitparpm': T2Fitpm}
                 
         elif self.methodIndex==1:
             T2Fit=np.zeros((self.numSequences,3))
@@ -85,8 +89,50 @@ class dataWorkerT2(QtCore.QThread):
                 self.bgThreadTextOut.emit(fitString)
                 self.updateprogress.emit('Fit %d of %d'%(i,self.numSequences))
             T2Fit[:,2]=c
-        
+            res={'fitpar': T2Fit, 'fitparpm': T2Fitpm}
+
+        elif self.methodIndex==2:
+            t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
+            #Calculate c from longest echotime measurement
+            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,120,0])
+            c=popt[2]
+            
+            self.updateprogress.emit('Starting ILT, prints to console')
+            
+            self.bgThreadTextOut.emit('Running flint ILT transform')
+            
+            ILbins = 128
+            alpha = 8e-4
+            self.bgThreadTextOut.emit('Using alpha={0:.2e}, {1:d} bins'.format(alpha, ILbins))
+            #Stays the same for each iteration
+            numechoes = self.xdataIn.shape[1]
+            T2out = np.logspace(-3, 0, ILbins)
+            K1 = np.array([[1]])
+            
+            #modified in each iteration
+            ILspectra = np.zeros((self.numSequences, ILbins))
+            K2 = np.zeros((numechoes, ILbins))
+            pickedT2 = np.zeros(self.numSequences)
+            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|'.format('#','Echotime','T2 at Max'))
+            
+            for i in xrange(self.numSequences):
+                flag=''
+                K2[:,:] = np.exp(np.outer(-1*self.xdataIn[i,:], 1/T2out))
+                ILspectra[i,:], resida = flint(K1, K2, self.ydataIn[i]-c, alpha, S = ILspectra[i-1])
+                mxloc=np.argmax(ILspectra[i,:])
+                #If max is at the edge, force it back into the middle
+                if mxloc==0 or mxloc == ILbins-1:
+                    mxloc=np.argmax(ILspectra[i,2:-2])
+                    flag='offscale'
+                pickedT2[i] = T2out[mxloc]
+
+                self.updateprogress.emit('Done ILT %d/%d'%(i,self.numSequences))
+                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:s}'.format(i,self.echoTimes[i],pickedT2[i],flag)
+                self.bgThreadTextOut.emit(fitString)
+            
+            res = {'pickedT2': pickedT2, 'ILspectra':ILspectra, 'T2out': T2out, 'const': c}
+#            print(pickedT2.shape, ILspectra.shape, T2out.shape)
         self.updateprogress.emit('Done T2 fitting')
         self.bgThreadTextOut.emit('\n')
-        self.bgThreadResult.emit(T2Fit, T2Fitpm)
+        self.bgThreadResult.emit(res)
 
