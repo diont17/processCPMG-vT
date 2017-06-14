@@ -27,14 +27,18 @@ class reaApp(QtGui.QMainWindow, readEchoAmpsGui.Ui_REAWindow):
         if exists(path + '/echoTimes.csv'):
            self.inFolder.setText(path)
            self.lastPath=path
-           ET=np.loadtxt(str(path+'/echoTimes.csv'), delimiter=',')
+           ET=np.loadtxt(str(path+'/echoTimes.csv'), delimiter=',')*1e-6
            self.lblStatus.setText('{} Echoes: ET {:.2e} ->{:.2e}'.format(ET.shape[0],ET[0],ET[-1]))
+        elif path == None:
+            return
         else:
             self.complain()
 
     def browseOutputFile(self):
         path=QtGui.QFileDialog.getSaveFileName(self, "Name and path of output matlab file",directory=self.lastPath)
         if path:
+            if not path.endsWith('.mat'):
+                path=path+'.mat'
             self.outFile.setText(path)
     
     def quitApp(self):
@@ -86,7 +90,7 @@ class dataWorker(QtCore.QThread):
         fnameIn=str(self.fnameIn)
         fnameOut=str(self.fnameOut)
         
-        echoTimes=np.loadtxt(fnameIn+'/echoTimes.csv')
+        echoTimes=1e-6*np.loadtxt(fnameIn+'/echoTimes.csv')
         numEchoTimes=echoTimes.shape[0]
         i=1
         #Test if all files exist
@@ -100,23 +104,23 @@ class dataWorker(QtCore.QThread):
         rawEA=np.loadtxt(fnameIn+'/ET%d.csv'%1, delimiter=',',dtype=np.complex)
         
         #For real Prospa data (doesnt export a+bj format data)
-        #numEchoes=rawEA.shape[0]
-        #numPoints=rawEA.shape[1]/2
         numEchoes=rawEA.shape[0]
-        numPoints=rawEA.shape[1]
+        numPoints=rawEA.shape[1]/2
+#        numEchoes=rawEA.shape[0]
+#        numPoints=rawEA.shape[1]
         
         
         #Make data array
         fullData=np.zeros((numEchoTimes,numEchoes,numPoints),dtype=np.complex)
         
-        for i in xrange(0,numEchoTimes-1):
+        for i in xrange(0,numEchoTimes):
             rawEA=np.loadtxt(fnameIn+'/ET%1d.csv'%(i),delimiter=',',dtype=np.complex)
             
-            #realEA=rawEA[:,::2]
-            #imagEA=rawEA[:,1::2]
-            #fullData[i,:,:]=realEA+1j*imagEA
+            realEA=rawEA[:,::2]
+            imagEA=rawEA[:,1::2]
+            fullData[i,:,:]=realEA+1j*imagEA
             
-            fullData[i,:,:]=rawEA[:,:]
+#            fullData[i,:,:]=rawEA[:,:]
             self.emit(SIGNAL("updateprogress(QString)"),'Loaded %d of %d'%(i,numEchoTimes))
         print fullData.shape      
         
@@ -134,6 +138,7 @@ class dataWorker(QtCore.QThread):
             
         self.emit(SIGNAL("updateprogress(QString)"),'Phasing data')            
         phase=phaseByMinCplx(fullData[0,0,:])
+        phase=0
         fullData*=np.exp((phase/360.0)*2j*np.pi)
         
         self.emit(SIGNAL("updateprogress(QString)"),'Saving')
