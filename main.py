@@ -36,7 +36,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.setupGraphs(self)
         
         #window vars:
-        self.lastpath = '/home/dion/Documents/Python/processCPMG-vT/testData/r87'
+        self.lastpath = '/home/dion/Documents/Experimental Data/BloodflowTesting/'
         self.hasEchoData = False
         self.hasDecayData = False
         self.hasT2Data = False
@@ -106,6 +106,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         path=str(QtGui.QFileDialog.getOpenFileName(self,"Select matlab CPMGvT file to load", self.lastpath, '*.mat'))
         if exists(path):
             fileIn=sio.loadmat(path)
+            self.lastpath=path
             if 'phasedEchoData' in fileIn:
                 self.dechoTimes = fileIn['echoTimes'] [0]
                 self.drawData = fileIn['phasedEchoData']
@@ -119,14 +120,15 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.complain('File does not contain echodata')
                     
         else:
-            self.complain('File does not exist')
             self.lastpath=path
+            self.complain('File does not exist')
             return -1
         
     def loadDecayMat(self):
         path=str(QtGui.QFileDialog.getOpenFileName(self, "Select matlab CPMGvT file to load", self.lastpath, "*.mat"))
         if exists(path):
             fileIn=sio.loadmat(path)
+            self.lastpath=path
             if 'decays' in fileIn:
                 self.dechoTimes=fileIn['echoTimes'] [0]
                 self.ddecays=fileIn['decays']
@@ -181,12 +183,14 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.ax1.clear()
                 self.canvas1.draw()
 
-                self.ax1.imshow(curslice)
+                self.ax1.imshow(curslice, cmap = plt.cm.plasma, interpolation = 'None')
                 self.ax1.axvline(x =  int(self.spnRangeLeft.value()), lw=1, color='red')
                 self.ax1.axvline(x = int(self.spnRangeRight.value()), lw=1, color='red')
                 self.ax1.set_ylabel('Echo')
                 self.ax1.set_xlabel('Acq time')
+                self.ax1.set_aspect(float(self.dnumPoints) / self.dnumEchoes)
                 self.canvas1.draw()
+                
 
     def doFT(self):
         if self.hasEchoData:
@@ -276,13 +280,14 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         
         elif method ==2: #ILT
             self.dT2Fit = np.zeros((self.dnumEchoTimes,1))
+            self.dT2Fitpm = np.zeros((self.dnumEchoTimes,1))
             self.dT2Fit[:,0] = res['pickedT2']
-            self.dT2Fitpm = np.zeros_like(self.dT2Fit)
+            self.dT2Fitpm[:,0] = res['pickedT2pm']
             self.hasT2Data = True
             self.hasILData = True
             self.bgThread = None
             self.T2FitFunction = self.inverseLaplaceFit
-            self.dILX = res['T2out']
+            self.dILX = res['T2axis']
             self.dILY = res['ILspectra']
             self.dILc = res['const']
             
@@ -345,6 +350,11 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.ax2a.semilogx(self.dILX, self.dILY[int(self.spnEcho.value())])
             self.ax2a.set_xlabel('T2 (s)')
             self.ax2a.set_ylabel('IL spectrum')
+            
+            if self.chkShowFits.isChecked():
+                i = self.spnEcho.value()
+                fitpeak = self.dILY[i, self.dILX == self.dT2Fit[i,0]] * (np.exp(-1*((self.dILX-self.dT2Fit[i,0])/self.dT2Fitpm[i,0])**2))
+                self.ax2a.semilogx(self.dILX, fitpeak, color='green', linewidth=1)
             
         self.canvas1.draw()
     

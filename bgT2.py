@@ -93,16 +93,17 @@ class dataWorkerT2(QtCore.QThread):
 
         elif self.methodIndex==2:
             t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
+            
             #Calculate c from longest echotime measurement
             popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,120,0])
             c=popt[2]
             
             self.updateprogress.emit('Starting ILT, prints to console')
             
-            self.bgThreadTextOut.emit('Running flint ILT transform')
+            self.bgThreadTextOut.emit('Running flint ILT')
             
             ILbins = 128
-            alpha = 8e-4
+            alpha = 8e-2
             self.bgThreadTextOut.emit('Using alpha={0:.2e}, {1:d} bins'.format(alpha, ILbins))
             #Stays the same for each iteration
             numechoes = self.xdataIn.shape[1]
@@ -113,24 +114,32 @@ class dataWorkerT2(QtCore.QThread):
             ILspectra = np.zeros((self.numSequences, ILbins))
             K2 = np.zeros((numechoes, ILbins))
             pickedT2 = np.zeros(self.numSequences)
-            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|'.format('#','Echotime','T2 at Max'))
+            pickedT2peak = np.zeros(self.numSequences)
+            pickedT2pm = np.zeros(self.numSequences)
+            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}'.format('#','Echotime','T2 at Max','T2 +/-'))
             
             for i in xrange(self.numSequences):
                 flag=''
-                K2[:,:] = np.exp(np.outer(-1*self.xdataIn[i,:], 1/T2out))
+                K2[:,:] = np.exp(np.outer(-1*self.xdataIn[i,:], 1.0/T2out))
                 ILspectra[i,:], resida = flint(K1, K2, self.ydataIn[i]-c, alpha, S = ILspectra[i-1])
+                
                 mxloc=np.argmax(ILspectra[i,:])
                 #If max is at the edge, force it back into the middle
                 if mxloc==0 or mxloc == ILbins-1:
-                    mxloc=np.argmax(ILspectra[i,2:-2])
+                    mxloc=np.argmax(ILspectra[i,5:-5])
                     flag='offscale'
                 pickedT2[i] = T2out[mxloc]
-
+                pickedT2peak[i] = ILspectra[i,mxloc]
+#                
+                gaussPeak = lambda x,a: (np.exp(-1*((x-T2out[mxloc])/a)**2))
+                popt,pcov = opt.curve_fit(gaussPeak, T2out[mxloc-10:mxloc+10], ILspectra[i, mxloc-10:mxloc+10]/pickedT2peak[i])
+                pickedT2pm[i] = popt[0]
+                pickedT2pm = np.abs(pickedT2pm)
                 self.updateprogress.emit('Done ILT %d/%d'%(i,self.numSequences))
-                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:s}'.format(i,self.echoTimes[i],pickedT2[i],flag)
+                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{4:^10.4f}|{3:s}'.format(i,self.echoTimes[i],pickedT2[i],flag,pickedT2pm[i])
                 self.bgThreadTextOut.emit(fitString)
             
-            res = {'pickedT2': pickedT2, 'ILspectra':ILspectra, 'T2out': T2out, 'const': c}
+            res = {'pickedT2': pickedT2, 'ILspectra':ILspectra, 'T2axis': T2out, 'const': c, 'pickedT2pm': pickedT2pm}
 #            print(pickedT2.shape, ILspectra.shape, T2out.shape)
         self.updateprogress.emit('Done T2 fitting')
         self.bgThreadTextOut.emit('\n')

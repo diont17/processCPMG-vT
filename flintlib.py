@@ -77,7 +77,7 @@ def flint(K1, K2, Z, alpha, S=None):
     tt = 1
     fac1 = (L-2*alpha)/L
     fac2 = 2.0/L
-    lastresid = np.inf
+    lastresid = 0
 #    print(KK1.shape, Y.shape, KK2.shape, KZ12.shape)
     print("{0:7s} | {1:8s} | {2:8s} | {3:8s} | {4:10s} | {5:10s}|".format(" i ", "tt", "trat", "L", "resid", "resd"))
 
