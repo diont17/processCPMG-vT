@@ -41,6 +41,27 @@
      </layout>
     </item>
     <item>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QLabel" name="lblBlank">
+        <property name="text">
+         <string>Blank folder</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="txtBlank"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnSelectBlank">
+        <property name="text">
+         <string>Select Folder</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
      <layout class="QHBoxLayout" name="horizontalLayout_4">
       <item>
        <widget class="QLabel" name="label_3">
@@ -63,6 +84,13 @@
     </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QCheckBox" name="chkUseBlank">
+        <property name="text">
+         <string>Use Blank</string>
+        </property>
+       </widget>
+      </item>
       <item>
        <widget class="QLabel" name="lblStatus">
         <property name="text">
