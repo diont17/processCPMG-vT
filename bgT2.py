@@ -17,16 +17,19 @@ class dataWorkerT2(QtCore.QThread):
     bgThreadTextOut=QtCore.pyqtSignal(QtCore.QString)
     updateprogress=QtCore.pyqtSignal(QtCore.QString)
     
-    def __init__(self,xdataIn,ydataIn,echoTimes,methodIndex):
+    def __init__(self,xdataIn,ydataIn,echoTimes,methodIndex,fitRange):
         QtCore.QThread.__init__(self)
-        self.xdataIn=xdataIn
-        self.ydataIn=ydataIn
         self.numSequences=xdataIn.shape[0]
         self.echoTimes=echoTimes
-        self.methodIndex=methodIndex 
+        self.methodIndex=methodIndex
         
+        self.fitRange = fitRange
+        self.xdataIn=xdataIn
+        self.ydataIn=ydataIn
+                
         #0 - monoexponential fit
         #1 - monoexponential, no offset (c)
+        #2 - flint inverse laplace, maximum peak from spectrum
         
     def __del__(self):
         self.wait()
@@ -38,16 +41,21 @@ class dataWorkerT2(QtCore.QThread):
         self.updateprogress.emit('Starting T2 fitting')
         
         if self.methodIndex==0:
-            T2Fit=np.zeros((self.numSequences,3))
-            T2Fitpm=np.zeros((self.numSequences,3))
+            T2Fit = np.zeros((self.numSequences,3))
+            T2Fitpm = np.zeros((self.numSequences,3))
             
             def t2Fit(x,t2,a,c):
                 return (a*np.exp(-x/t2))+c
             self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2) + c' )
+            self.bgThreadTextOut.emit('Using points in range {0:.3f} - {1:.3f} s'.format(self.fitRange[0],self.fitRange[1]))
             self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|{6:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-','c'))
 
             for i in xrange(self.numSequences):
-                popt,pcov=opt.curve_fit(t2Fit,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120,0])
+                #Expanded to allow for variable length T2 fitting
+                curX = self.xdataIn[i,:]
+                curY = self.ydataIn[i,:]
+                fitRangeMask = (curX >= self.fitRange[0]) * (curX < self.fitRange[1])
+                popt, pcov = opt.curve_fit(t2Fit,curX[fitRangeMask],curY[fitRangeMask],p0=[0.1,120,0])
                 T2Fit[i,0]=popt[0]
                 T2Fitpm[i,0]=np.abs(pcov[0,0]**0.5)
                 T2Fit[i,1]=popt[1]
@@ -68,23 +76,28 @@ class dataWorkerT2(QtCore.QThread):
             t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
             
             #Calculate c from longest echotime measurement
-            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,120,0])
+            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,2000,0])
             c=popt[2]
             
             t2exp = lambda x,t2,a: ((a*np.exp(-x/t2))+c) 
             
             self.bgThreadTextOut.emit('Fit decays to  A*exp(-x/T2) + c, c={0:.3f}'.format(c))
-            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-'))
+            self.bgThreadTextOut.emit('Using points in range {0:.3f} - {1:.3f} s'.format(self.fitRange[0],self.fitRange[1]))
+            self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|{6:^10.10s}|'.format('#','Echotime','T2','+/-','A','+/-','# Points'))
             
             for i in xrange(self.numSequences):
-                popt,pcov=opt.curve_fit(t2exp,self.xdataIn[i,:],self.ydataIn[i,:],p0=[0.1,120])
+                curX = self.xdataIn[i,:]
+                curY = self.ydataIn[i,:]
+                fitRangeMask = (curX > self.fitRange[0]) * (curX < self.fitRange[1])
+                npoints = np.sum(fitRangeMask)
+                popt,pcov=opt.curve_fit(t2exp,curX[fitRangeMask],curY[fitRangeMask],p0=[0.1,2000])
                 
                 T2Fit[i,0]=popt[0]
                 T2Fitpm[i,0]=np.abs(pcov[0,0]**0.5)
                 T2Fit[i,1]=popt[1]
                 T2Fitpm[i,1]=np.abs(pcov[1,1]**0.5)
                 
-                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:^10.4f}|{4:^10.4f}|{5:^10.4f}|'.format(i,self.echoTimes[i],T2Fit[i,0],T2Fitpm[i,0],T2Fit[i,1],T2Fitpm[i,1])
+                fitString='|{0:^10d}|{1:^10.3e}|{2:^10.4f}|{3:^10.4f}|{4:^10.4f}|{5:^10.4f}|{6:^10d}|'.format(i,self.echoTimes[i],T2Fit[i,0],T2Fitpm[i,0],T2Fit[i,1],T2Fitpm[i,1],npoints)
                 
                 self.bgThreadTextOut.emit(fitString)
                 self.updateprogress.emit('Fit %d of %d'%(i,self.numSequences))
@@ -95,7 +108,7 @@ class dataWorkerT2(QtCore.QThread):
             t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
             
             #Calculate c from longest echotime measurement
-            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,120,0])
+            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,2000,0])
             c=popt[2]
             
             self.updateprogress.emit('Starting ILT, prints to console')

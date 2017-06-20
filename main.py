@@ -60,6 +60,8 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.chkPlotAllEchoes.stateChanged.connect(self.drawDecays)
         self.chkShowFits.stateChanged.connect(self.drawDecays)
         self.spnEcho.valueChanged.connect(self.drawDecays)
+        self.spnFitRangeEnd.valueChanged.connect(self.drawDecays)
+        self.spnFitRangeStart.valueChanged.connect(self.drawDecays)
         self.cmbT2Fit.addItem('Monoexponential')
         self.cmbT2Fit.addItem('Monoexponential (fixed c)')
         self.cmbT2Fit.addItem('Inverse Laplace')
@@ -113,6 +115,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.hasEchoData = True
                 self.populateEchoes()
                 self.updateFitText('Loaded from ' + path)
+                self.lblFilename.setText('File: %s'%path)
                 self.hasDecayData = False
                 self.hasILData = False
                 self.hasRelaxationData = False
@@ -138,6 +141,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.hasDecayData=True
                 self.drawDecays(keepView=False)
                 self.updateFitText('Loaded decays from ' + path)
+                self.lblFilename.setText('File: %s'%path)
                 if 'T2fit' in fileIn:
                     self.dT2Fit=fileIn['T2Fit'] [0]
                     self.dT2Fitpm=fileIn['T2Fitpm'] [0]
@@ -174,7 +178,12 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.spnRangeRight.setMaximum(self.dnumPoints-1)            
             self.ddispData=self.drawData
             self.drawEchoes()           
-                        
+            
+            self.spnFitRangeStart.setValue(0)
+            self.spnFitRangeStart.setMaximum((self.dnumEchoes-1)*self.dechoTimes[-1])
+            self.spnFitRangeEnd.setMaximum((self.dnumEchoes)*self.dechoTimes[-1])
+            self.spnFitRangeEnd.setValue((self.dnumEchoes)*self.dechoTimes[-1]) 
+            
     def drawEchoes(self):
         if self.hasEchoData:
                 selectedEcho=int(self.spnEcho.value())
@@ -209,7 +218,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     def doneFT(self, result):
         self.dFTData=result
         self.setUILocked(False)
-        self.setStatusText('Returned from FT bg work thread')
+        self.setStatusText('Done FT')
 #        print(result[0,0])
 #        print(self.drawData[0,0])        
         self.ddispData=self.dFTData
@@ -259,8 +268,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
     def doT2Fit(self):
         if self.hasDecayData:
             xaxis=np.outer(self.dechoTimes,np.arange(self.dnumEchoes)+1)
-            
-            self.bgThread=dataWorkerT2(xaxis,self.ddecays,self.dechoTimes,int(self.cmbT2Fit.currentIndex()))
+            fitRangeStart = float(self.spnFitRangeStart.value())
+            fitRangeEnd = float(self.spnFitRangeEnd.value())
+            self.bgThread = dataWorkerT2(xaxis,self.ddecays,self.dechoTimes,int(self.cmbT2Fit.currentIndex()),[fitRangeStart,fitRangeEnd])
             self.setStatusText('Starting T2fit thread')
             
             self.bgThread.updateprogress.connect(self.setStatusText)
@@ -323,6 +333,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.ax2.clear()
             self.canvas1.draw()
             
+            self.ax2.axvline(x = float(self.spnFitRangeStart.value()), lw = 1, color = 'black')
+            self.ax2.axvline(x = float(self.spnFitRangeEnd.value()), lw = 1, color = 'black')            
+ 
             xaxis=np.outer(self.dechoTimes,np.arange(self.dnumEchoes)+1)
 
             if self.chkPlotAllEchoes.isChecked():
@@ -343,7 +356,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
 
             self.ax2.set_xlabel('Time (s)')
             self.ax2.set_ylabel('Signal')
-            
+           
         if self.hasILData:
             self.ax2a.clear()
             self.canvas1.draw()
