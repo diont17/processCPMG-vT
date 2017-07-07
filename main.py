@@ -180,9 +180,9 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.drawEchoes()           
             
             self.spnFitRangeStart.setValue(0)
-            self.spnFitRangeStart.setMaximum((self.dnumEchoes-1)*self.dechoTimes[-1])
-            self.spnFitRangeEnd.setMaximum((self.dnumEchoes)*self.dechoTimes[-1])
-            self.spnFitRangeEnd.setValue((self.dnumEchoes)*self.dechoTimes[-1]) 
+            self.spnFitRangeStart.setMaximum((self.dnumEchoes-1)*self.dechoTimes.max())
+            self.spnFitRangeEnd.setMaximum((self.dnumEchoes)*self.dechoTimes.max())
+            self.spnFitRangeEnd.setValue((self.dnumEchoes)*self.dechoTimes.max()) 
             
     def drawEchoes(self):
         if self.hasEchoData:

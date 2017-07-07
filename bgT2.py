@@ -76,7 +76,8 @@ class dataWorkerT2(QtCore.QThread):
             t2expConst = lambda x,t2,a,c: (a*np.exp(-x/t2)+c)
             
             #Calculate c from longest echotime measurement
-            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[-1,:], self.ydataIn[-1,:],p0=[0.1,2000,0])
+            maxETindex = np.argmax(self.echoTimes)
+            popt,pcov=opt.curve_fit(t2expConst, self.xdataIn[maxETindex,:], self.ydataIn[maxETindex,:],p0=[0.1,2000,0])
             c=popt[2]
             
             t2exp = lambda x,t2,a: ((a*np.exp(-x/t2))+c) 
@@ -125,7 +126,7 @@ class dataWorkerT2(QtCore.QThread):
             
             #modified in each iteration
             ILspectra = np.zeros((self.numSequences, ILbins))
-            K2 = np.zeros((numechoes, ILbins))
+            #K2 = np.zeros((numechoes, ILbins)) changes shape each run
             pickedT2 = np.zeros(self.numSequences)
             pickedT2peak = np.zeros(self.numSequences)
             pickedT2pm = np.zeros(self.numSequences)
@@ -133,8 +134,13 @@ class dataWorkerT2(QtCore.QThread):
             
             for i in xrange(self.numSequences):
                 flag=''
-                K2[:,:] = np.exp(np.outer(-1*self.xdataIn[i,:], 1.0/T2out))
-                ILspectra[i,:], resida = flint(K1, K2, self.ydataIn[i]-c, alpha, S = ILspectra[i-1])
+                xdata = np.copy(self.xdataIn[i,:])
+                ydata = np.copy(self.ydataIn[i,:])
+                ydata -= c
+                fitRangeMask = (xdata > self.fitRange[0])*(xdata<self.fitRange[1])
+                
+                K2 = np.exp(np.outer(-1*xdata[fitRangeMask], 1.0/T2out))
+                ILspectra[i,:], resida = flint(K1, K2, ydata[fitRangeMask], alpha, S = ILspectra[i-1])
                 
                 mxloc=np.argmax(ILspectra[i,:])
                 #If max is at the edge, force it back into the middle
@@ -157,4 +163,3 @@ class dataWorkerT2(QtCore.QThread):
         self.updateprogress.emit('Done T2 fitting')
         self.bgThreadTextOut.emit('\n')
         self.bgThreadResult.emit(res)
-

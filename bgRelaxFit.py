@@ -73,12 +73,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                     if self.fixedPar[0]:
                         LM1 = lambda x,a,b: LM0(x, self.fixedParVal[0], a, b)
                         popt,pcov,idm,err,ier= opt.curve_fit(LM1, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=[guesses[1],guesses[2]],full_output=True)
-                        print(' popt: \n' )
-                        print(popt)
-                        print('\n pcov:\n')
-                        print(pcov)
-                        print('\nid\n')
-                        print(idm)
+
                         fitPar[1]=popt[0]
                         fitPar[2]=popt[1]
                         fitParpm[1]=np.abs(pcov[0,0]**0.5)
@@ -137,12 +132,6 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             self.bgThreadTextOut.emit('|{0:^10.10s}|{1:^10.10s}|{2:^10.10s}|{3:^10.10s}|{4:^10.10s}|{5:^10.10s}|'.format('Tex' + printTrue(self.fixedPar[0]),'+/-','R0' + printTrue(self.fixedPar[1]),'+/-','K0' + printTrue(self.fixedPar[2]), '+/-'))
             fitString='|{0:^10.4f}|{1:^10.4f}|{2:^10.4f}|{3:^10.4f}|{4:^10.4e}|{5:^10.4e}|'.format(fitPar[0], fitParpm[0], fitPar[1], fitParpm[1], fitPar[2], fitParpm[2])
                
-#           print('\nxdata\n')
-#           print(self.xdataIn[i])
-#           print('\nydata\n')
-#           print(self.ydataIn[i])
-#           print(fitData[i])
-                
             self.bgThreadTextOut.emit(fitString)
             self.bgThreadTextOut.emit('\n\n')
 
@@ -236,12 +225,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             elif numFixed==3:
                 pass
 
-            def printTrue(val):
-                if val:
-                    return '**'
-                else:
-                    return ''
-                
+            printTrue = lambda val: ('**' if val else '') 
 
             self.bgThreadTextOut.emit('Fit R2 values to R2 = R0 + (G0 * gamma**2 * rc**2)/(2*D) * JCF(2*D*Tec/(rc**2))' )
             self.bgThreadTextOut.emit('%d/3 Fixed parameters' % numFixed)
