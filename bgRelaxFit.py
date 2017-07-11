@@ -52,15 +52,17 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             self.updateprogress.emit('Starting Relaxation Fit - Luz-Meiboom')            
             
             def LM0(Tec,Tex,R0,K0):
-                gamma=2.675e8
+                gamma = 2.675e8
                 return R0 + (gamma**2 * K0 * Tex) *(1- 2*(Tex/Tec)*np.tanh(Tec/(2*Tex)))
-            
-            guesses=[5.05, 3e-3, 0.5e-14]
-            absSig=self.useError
-            numFixed=self.fixedPar[0] + self.fixedPar[1] +self.fixedPar[2]
-            fitPar=np.zeros(3)
-            fitPar[0:3]=self.fixedParVal[0:3]
-            fitParpm=np.zeros(3)
+            print(self.fixedParVal)
+#            guesses = np.array([3e-3, 5, 0.5e-14])
+            guesses = np.where(self.fixedParVal[0:3]==0, np.array([3e-3, 5,0.5e-14]), self.fixedParVal[0:3])  
+            print(guesses)
+            absSig = self.useError
+            numFixed = self.fixedPar[0] + self.fixedPar[1] +self.fixedPar[2]
+            fitPar = np.zeros(3)
+            fitPar[0:3] = self.fixedParVal[0:3]
+            fitParpm = np.zeros(3)
 
             if numFixed==0:
                 popt,pcov=opt.curve_fit(LM0, self.echoTimes, self.R2, sigma=self.R2pm, absolute_sigma=absSig, p0=guesses)
@@ -133,7 +135,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
             fitString='|{0:^10.4f}|{1:^10.4f}|{2:^10.4f}|{3:^10.4f}|{4:^10.4e}|{5:^10.4e}|'.format(fitPar[0], fitParpm[0], fitPar[1], fitParpm[1], fitPar[2], fitParpm[2])
                
             self.bgThreadTextOut.emit(fitString)
-            self.bgThreadTextOut.emit('\n\n')
+            self.bgThreadTextOut.emit('\n')
 
         
             self.updateprogress.emit('Done Relaxation fitting')
@@ -161,7 +163,8 @@ class dataWorkerRelaxationFit(QtCore.QThread):
                 #D=2 um/ms, fixed
                 return R0 + (G0 * gamma**2 * rc**2)/(2*D) * JCF(2*D*Tec/(rc**2))
 
-            guesses=[5.05, 4.6, 6.6e-14]
+            guesses=np.array([5.05, 4.6, 6.6e-14])
+            np.copyto(guesses, self.fixedParVal[0:3], where = (self.fixedParVal[0:3]==0))
             absSig=self.useError
                        
             numFixed=self.fixedPar[0] + self.fixedPar[1] +self.fixedPar[2]
@@ -241,7 +244,7 @@ class dataWorkerRelaxationFit(QtCore.QThread):
 #           print(fitData[i])
                 
             self.bgThreadTextOut.emit(fitString)
-            self.bgThreadTextOut.emit('\n\n')
+            self.bgThreadTextOut.emit('\n')
 
         
         self.updateprogress.emit('Done Relaxation fitting')

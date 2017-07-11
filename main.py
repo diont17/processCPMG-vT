@@ -409,13 +409,13 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             useError=self.chkUseFitError.isChecked()
             
             fixedPar=[self.chkRxP0.isChecked(), self.chkRxP1.isChecked(), self.chkRxP2.isChecked(), self.chkRxP3.isChecked()]
-            if not fixedPar[0]:
+            if self.txtRxP0.text() == '':
                 self.txtRxP0.setText('0')
-            if not fixedPar[1]:
+            if self.txtRxP1.text() == '':
                 self.txtRxP1.setText('0')
-            if not fixedPar[2]:
+            if self.txtRxP2.text() == '':
                 self.txtRxP2.setText('0')
-            if not fixedPar[3]:
+            if self.txtRxP3.text() == '':
                 self.txtRxP3.setText('0')
             try:            
                 fixedParVal=[float(self.txtRxP0.text()), float(self.txtRxP1.text()), float(self.txtRxP2.text()),float(self.txtRxP3.text())]
