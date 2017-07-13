@@ -71,6 +71,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         self.chkPlotRelaxivity.stateChanged.connect(self.drawRelaxation)
         self.cmbRelaxFitType.addItem('Luz-Meiboom (from Stefanovic & Pike 2004)')
         self.cmbRelaxFitType.addItem('Jensen Chandra (from Jensen & Chandra 2000')
+        self.cmbRelaxFitType.addItem('Diffusion fit')        
         self.cmbRelaxFitType.currentIndexChanged.connect(self.nameRelaxationPar)
         self.nameRelaxationPar()
         self.btnDoRelaxFit.clicked.connect(self.doRelaxationFit)
@@ -192,7 +193,7 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
                 self.ax1.clear()
                 self.canvas1.draw()
 
-                self.ax1.imshow(curslice, cmap = plt.cm.plasma, interpolation = 'None')
+                self.ax1.imshow(curslice, cmap = plt.cm.summer, interpolation = 'None')
                 self.ax1.axvline(x =  int(self.spnRangeLeft.value()), lw=1, color='red')
                 self.ax1.axvline(x = int(self.spnRangeRight.value()), lw=1, color='red')
                 self.ax1.set_ylabel('Echo')
@@ -440,6 +441,8 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.RelaxationFitFunction=self.LuzMeiboomFit
         elif self.cmbRelaxFitType.currentIndex()==1:
             self.RelaxationFitFunction=self.JCFit
+        elif self.cmbRelaxFitType.currentIndex()==2:
+            self.RelaxationFitFunction = self.DiffFit
             
         self.bgThread=None
 
@@ -481,6 +484,22 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
             self.chkRxP3.setChecked(False)
             
             self.txtRxP1.setText('4.3')
+        elif self.cmbRelaxFitType.currentIndex()==2:
+            #Diffusion fit
+            self.chkRxP0.setText('R0 (s-1)')
+            self.chkRxP0.setEnabled(True)
+            self.chkRxP0.setChecked(False)
+            self.chkRxP1.setText('D (um/s)')
+            self.chkRxP1.setChecked(True)
+            self.chkRxP1.setEnabled(True)
+            self.chkRxP2.setText('G0 (T/mm)')
+            self.chkRxP2.setEnabled(True)
+            self.chkRxP0.setChecked(False)
+            self.chkRxP3.setText('')
+            self.chkRxP3.setEnabled(False)
+            self.txtRxP3.setEnabled(False)
+            self.chkRxP3.setChecked(False)
+            
             
         
     
@@ -541,6 +560,16 @@ class processCPMGvtApp(QtGui.QMainWindow, mainWindowGUI.Ui_mainWindow):
         gamma = 2.675e8
 
         return R0 + ((G0 * gamma**2 * rc**2) / (2*D)) * JCF(2*D * xaxis / (rc**2))
+
+    def DiffFit(self,xaxis):
+        gamma=2.675e8
+        R0 = self.dRelaxationFit[0]
+        D = self.dRelaxationFit[1]
+        G0 = self.dRelaxationFit[2]
+        D=2e3
+        gamma = 2.675e8
+        return R0 + (xaxis**3 * D * gamma**2 * G0**2)/12.0
+
 
 def main():
     app=QtGui.QApplication(sys.argv)
